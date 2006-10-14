@@ -22,7 +22,7 @@
 
 (in-package :computed-class)
 
-; TODO: (declaim (optimize (speed 3) (debug 0) (safety 0)))
+(declaim (optimize (speed 3) (debug 0) (safety 0)))
 
 (enable-sharp-boolean-syntax)
 
@@ -46,10 +46,10 @@
   ())
 
 (defclass computed-object ()
-  ((computed-states
+  ((slot-computed-state-pairs
     :initform nil
     :type list
-    :accessor computed-states-of
+    :accessor slot-computed-state-pairs-of
     :initarg :computed-states
     :documentation "An alist of slot meta objects and corresponding computed-state structure objects."))
   (:documentation "This is the base class for all computed classes. The class need not be listed in the direct classes when defining a computed class because the meta class takes care adding it."))
@@ -175,10 +175,9 @@
            (let ((*bypass-computed-slot-value-using-class* #t))
              (slot-boundp-using-class class object slot))))
 
-(defmethod slot-value-using-class ((class computed-class)
-                                   (object computed-object)
-                                   (slot computed-effective-slot-definition))
-  
+(defmethod slot-value-using-class :before ((class computed-class)
+                                           (object computed-object)
+                                           (slot computed-effective-slot-definition))
   (let ((computed-state (computed-state-for object slot)))
     (when (and computed-state
                (has-recompute-slot-value-contex))
@@ -186,8 +185,7 @@
         (push computed-state (used-computed-states-of context))))
     (unless (or *bypass-computed-slot-value-using-class*
                 (not computed-state))
-      (ensure-valid-slot-value class object slot computed-state))
-    (call-next-method)))
+      (ensure-valid-slot-value class object slot computed-state))))
 
 (defmethod (setf slot-value-using-class) (new-value
                                           (class computed-class)
@@ -229,7 +227,7 @@
   (declare (ignore object slot-names computed)))
 
 (defmethod initialize-instance :before ((object computed-object) &key &allow-other-keys)
-  (setf (computed-states-of object) nil))
+  (setf (slot-computed-state-pairs-of object) nil))
 
 ;;;;;;;;;;;;;;;;;;
 ;;; Helper methods
@@ -243,7 +241,8 @@
   (declare (type computed-class class)
            (type computed-object object)
            (type computed-effective-slot-definition slot)
-           (type computed-state computed-state))
+           (type computed-state computed-state)
+           (optimize (speed 3) (debug 0) (safety 0)))
   (unless (slot-value-valid-p object slot)
     (check-circularity object slot)
     (recompute-slot-value class object slot computed-state))
@@ -351,21 +350,28 @@
 
 (defun computed-state-for (object slot)
   (declare (type computed-object object)
-           (type computed-effective-slot-definition slot))
-  (the (or null computed-state) (cdr (assoc slot (computed-states-of object) :test 'eq))))
+           (type computed-effective-slot-definition slot)
+           (optimize (speed 3) (debug 0) (safety 0)))
+  ;; the assoc turned out to be 2-3 times slower than a loop and this function is key for performance
+  ;; (the (or null computed-state) (cdr (assoc slot (the list (slot-computed-state-pairs-of object)) :test 'eq))))
+  (the (or null computed-state)
+    (let ((computed-states (slot-computed-state-pairs-of object)))      
+      (loop for el of-type cons in computed-states
+            when (eq (the computed-effective-slot-definition (car el)) slot)
+            do (return (cdr el))))))
 
 (defun (setf computed-state-for) (new-value object slot)
   (declare (type computed-state new-value)
            (type computed-object object)
            (type computed-effective-slot-definition slot))
-  (aif (assoc slot (computed-states-of object) :test 'eq)
+  (aif (assoc slot (slot-computed-state-pairs-of object) :test 'eq)
        (setf (cdr it) new-value)
-       (push (cons slot new-value) (computed-states-of object)))
+       (push (cons slot new-value) (slot-computed-state-pairs-of object)))
   (values))
 
 (defun remove-computed-state-for (object slot)
   (declare (type computed-object object)
            (type computed-effective-slot-definition slot))
-  (setf (computed-states-of object)
-        (delete slot (the list (computed-states-of object)) :key 'car :test 'eq))
+  (setf (slot-computed-state-pairs-of object)
+        (delete slot (the list (slot-computed-state-pairs-of object)) :key 'car :test 'eq))
   (values))
