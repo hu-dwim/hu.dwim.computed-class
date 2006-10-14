@@ -274,6 +274,8 @@
         new-value))))
 
 (defun slot-value-valid-p (object slot)
+  (declare (type computed-object object)
+           (type computed-effective-slot-definition slot))
   (let* ((computed-state (computed-state-for object slot))
          (pulse (computed-state-pulse computed-state)))
     (log.debug "Validating object ~A for slot ~A with pulse: ~A" object slot pulse)
@@ -293,6 +295,7 @@
                                        (and (> pulse used-pulse)
                                             (slot-value-valid-p used-object used-slot)))))
                                (computed-state-used-computed-states computed-state)))))))
+      (declare (type boolean result))
       (unless result
         (invalidate-computed-slot object slot))
       result)))
