@@ -103,7 +103,7 @@
    :type t))
 
 ;; TODO: use the bind package and struct here for performance reasons 
-(define-dynamic-context refresh-slot-value-contex
+(define-dynamic-context recompute-slot-value-contex
   ((used-computed-states
     :initform nil
     :type list
@@ -181,8 +181,8 @@
   
   (let ((computed-state (computed-state-for object slot)))
     (when (and computed-state
-               (has-refresh-slot-value-contex))
-      (in-refresh-slot-value-contex context
+               (has-recompute-slot-value-contex))
+      (in-recompute-slot-value-contex context
         (push computed-state (used-computed-states-of context))))
     (unless (or *bypass-computed-slot-value-using-class*
                 (not computed-state))
@@ -254,8 +254,8 @@
            (type computed-object object)
            (type computed-effective-slot-definition slot)
            (type computed-state computed-state))
-  (let ((context (make-instance 'refresh-slot-value-contex :object object :slot slot)))
-    (with-refresh-slot-value-contex context
+  (let ((context (make-instance 'recompute-slot-value-contex :object object :slot slot)))
+    (with-recompute-slot-value-contex context
       (log.debug "Recomputing object ~A for slot ~A with pulse ~A" object slot (computed-state-pulse computed-state))
       (let ((new-value (funcall (computed-state-compute-as computed-state) object))
             (store-new-value-p #t))
@@ -303,8 +303,8 @@
 (defun check-circularity (object slot)
   (declare (type computed-object object)
            (type computed-effective-slot-definition slot))
-  (when (has-refresh-slot-value-contex)
-    (in-refresh-slot-value-contex parent-context
+  (when (has-recompute-slot-value-contex)
+    (in-recompute-slot-value-contex parent-context
       (loop for ancestor-context = parent-context :then (parent-context-of ancestor-context)
             while ancestor-context
             do
