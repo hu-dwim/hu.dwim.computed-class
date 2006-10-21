@@ -272,7 +272,7 @@
             (setf store-new-value-p
                   (if (and (primitive-p old-value)
                            (primitive-p new-value))
-                      (not (eql old-value new-value))
+                      (not (equal old-value new-value))
                       (not (computed-value-equal-p old-value new-value))))))
         (when store-new-value-p
           (setf (cached-slot-value-using-class class object slot) new-value)
