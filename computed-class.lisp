@@ -232,6 +232,13 @@
 ;;;;;;;;;;;;;;;;;;
 ;;; Helper methods
 
+(defun primitive-p (object)
+  (declare (inline))
+  (or (numberp object)
+      (stringp object)
+      (symbolp object)
+      (characterp object)))
+
 (defun find-slot (class slot-name)
   (declare (type standard-class class)
            (type symbol slot-name))
@@ -263,8 +270,8 @@
         (when (cached-slot-boundp-using-class class object slot)
           (let ((old-value (cached-slot-value-using-class class object slot)))
             (setf store-new-value-p
-                  (if (and (constantp old-value)
-                           (constantp new-value))
+                  (if (and (primitive-p old-value)
+                           (primitive-p new-value))
                       (not (eql old-value new-value))
                       (not (computed-value-equal-p old-value new-value))))))
         (when store-new-value-p
@@ -296,6 +303,7 @@
                                (computed-state-used-computed-states computed-state)))))))
       (declare (type boolean result))
       (unless result
+        (log.debug "Slot value invalid in object ~A for slot ~A" object slot)
         (invalidate-computed-slot object slot))
       result)))
 
