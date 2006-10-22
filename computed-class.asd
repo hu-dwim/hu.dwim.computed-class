@@ -37,7 +37,7 @@
 	       "Levente Mészáros <levente.meszaros@gmail.com>")
   :licence "BSD"
   :description "Computed class is a class meta object which supports computed slots."
-  :depends-on (:arnesi)
+  :depends-on (:arnesi :closer-mop)
   :components
   ((:file "package")
    (:file "duplicates" :depends-on ("package"))

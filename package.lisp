@@ -27,7 +27,7 @@
 
   (:shadow #:log)
   
-  (:use :cl :sb-mop :arnesi)
+  (:use :cl :closer-mop :arnesi)
 
   (:export #:computed-class
            #:compute-as
