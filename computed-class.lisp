@@ -102,22 +102,16 @@
    nil
    :type t))
 
-;; TODO: use the bind package and struct here for performance reasons 
 (define-dynamic-context recompute-slot-value-contex
-  ((used-computed-states
-    :initform nil
-    :type list
-    :accessor used-computed-states-of
-    :initarg :used-computed-states)
-   (object
-    :type computed-object
-    :accessor object-of
-    :initarg :object)
-   (slot
-    :type computed-effective-slot-definition
-    :accessor slot-of
-    :initarg :slot))
-  :chain-parents #t)
+  ((used-computed-states nil
+    :type list)
+   (object nil
+    :type computed-object)
+   (slot nil
+    :type computed-effective-slot-definition))
+  :chain-parents #t
+  :create-struct #t
+  :struct-options ((:conc-name svc-)))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; CLOS MOP related
@@ -182,7 +176,7 @@
     (when (and computed-state
                (has-recompute-slot-value-contex))
       (in-recompute-slot-value-contex context
-        (push computed-state (used-computed-states-of context))))
+        (push computed-state (svc-used-computed-states context))))
     (unless (or *bypass-computed-slot-value-using-class*
                 (not computed-state))
       (ensure-valid-slot-value class object slot computed-state))))
@@ -260,13 +254,13 @@
            (type computed-object object)
            (type computed-effective-slot-definition slot)
            (type computed-state computed-state))
-  (let ((context (make-instance 'recompute-slot-value-contex :object object :slot slot)))
-    (with-recompute-slot-value-contex context
+  (with-new-recompute-slot-value-contex (:object object :slot slot)
+    (in-recompute-slot-value-contex context
       (log.debug "Recomputing object ~A for slot ~A with pulse ~A" object slot (computed-state-pulse computed-state))
       (let ((new-value (funcall (computed-state-compute-as computed-state) object))
             (store-new-value-p #t))
         (setf (computed-state-used-computed-states computed-state)
-              (used-computed-states-of context))
+              (svc-used-computed-states context))
         (when (cached-slot-boundp-using-class class object slot)
           (let ((old-value (cached-slot-value-using-class class object slot)))
             (setf store-new-value-p
@@ -312,11 +306,11 @@
            (type computed-effective-slot-definition slot))
   (when (has-recompute-slot-value-contex)
     (in-recompute-slot-value-contex parent-context
-      (loop for ancestor-context = parent-context :then (parent-context-of ancestor-context)
+      (loop for ancestor-context = parent-context :then (svc-parent-context ancestor-context)
             while ancestor-context
             do
-            (unless (or (not (eq object (object-of ancestor-context)))
-                        (not (eq slot (slot-of ancestor-context))))
+            (unless (or (not (eq object (svc-object ancestor-context)))
+                        (not (eq slot (svc-slot ancestor-context))))
               (error "Circularity detected among computed slots"))))))
 
 ;;;;;;;;;;;;;;;;;;;;

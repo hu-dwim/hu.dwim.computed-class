@@ -54,11 +54,11 @@
   (eval (read-from-string "(computed-class::enable-sharp-boolean-syntax)")))
 
 (defmethod perform ((op test-op) (system (eql (find-system :computed-class))))
-  (oos 'load-op :computed-class)
+  (operate 'load-op :computed-class)
   (in-package :computed-class)
-  (oos 'load-op :fiveam)
+  (operate 'load-op :fiveam)
   (use-package :5am)
-  (oos 'load-op :computed-class-test)
+  (operate 'load-op :computed-class-test)
   (funcall (read-from-string "5am:run!")))
 
 (defmethod operation-done-p ((op test-op) (system (eql (find-system :computed-class))))

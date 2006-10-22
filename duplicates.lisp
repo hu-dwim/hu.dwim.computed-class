@@ -43,78 +43,110 @@
      nil)))
 
 (defun concatenate-symbol (&rest args)
+  "Args are processed as parts of the result symbol with an exception: when a package is encountered then it is stored as the target package at intern."
   (let* ((package nil)
-         (symbol-name (with-output-to-string (str)
-                                             (loop for arg in args do
-                                                   (cond ((stringp arg) (format str arg))
-                                                         ((packagep arg) (setf package arg))
-                                                         ((symbolp arg)
-                                                          (unless package
-                                                            (setf package (symbol-package arg)))
-                                                          (format str (symbol-name arg)))
-                                                         (t (error "Cannot convert argument to symbol")))))))
-    (intern (string-upcase symbol-name) package)))
+         (symbol-name (string-upcase
+                       (with-output-to-string (str)
+                         (dolist (arg args)
+                           (typecase arg
+                             (string (write-string arg str))
+                             (package (setf package arg))
+                             (symbol (unless package
+                                       (setf package (symbol-package arg)))
+                                     (write-string (symbol-name arg) str))
+                             (integer (write-string (princ-to-string arg) str))
+                             (character (write-char arg) str)
+                             (t (error "Cannot convert argument ~S to symbol" arg))))))))
+    (if package
+        (intern symbol-name package)
+        (intern symbol-name))))
 
-(defmacro define-dynamic-context (name direct-slots &key export supers class-name chain-parents)
-  "This macro generates a with-name/in-name/current-name triplet.
-   The usual context stuff in a special variable..."
+;; from metabang-bind
+(defvar *defclass-macro-name-for-dynamic-context* 'defclass)
+(defmacro define-dynamic-context (name direct-slots &key direct-superclasses
+                                       export-symbols (class-name name) chain-parents
+                                       (create-struct nil) (create-class (not create-struct))
+                                       struct-options
+                                       (defclass-macro-name *defclass-macro-name-for-dynamic-context*))
+  "This macro generates with-NAME/in-NAME/current-NAME/has-NAME macros to access a CLOS instance in a special variable.
+   The purpose is to provide an easy way to access a group of related cotextual values."
+  (assert (and (or create-class
+                   create-struct
+                   (not (or direct-slots direct-superclasses chain-parents)))
+               (or (not create-struct)
+                   (not direct-superclasses)))
+          () "Invalid combination of DIRECT-SLOTS, DIRECT-SUPERCLASSES, CHAIN-PARENTS and CREATE-CLASS/CREATE-STRUCT.")
+  (assert (or (not struct-options) create-struct) () "STRUCT-OPTIONS while no CREATE-STRUCT?")
+  (assert (not (and create-class create-struct)) () "Only one of CREATE-CLASS and CREATE-STRUCT is allowed.")
   (let ((special-var-name (concatenate-symbol "%" name "%"))
-        (current-extractor-function-name (concatenate-symbol "current-" name))
-        (has-checker-function-name (concatenate-symbol "has-" name))
+        (extractor-name (concatenate-symbol "current-" name))
+        (has-checker-name (concatenate-symbol "has-" name))
         (with-new-macro-name (concatenate-symbol "with-new-" name))
         (with-macro-name (concatenate-symbol "with-" name))
-        (name-in-message (string-downcase (symbol-name name))))
-    (unless class-name
-      (setf class-name name))
+        (struct-constructor-name (when create-struct
+                                   (or (second (assoc :constructor struct-options))
+                                       (concatenate-symbol "make-" name))))
+        (struct-conc-name (when create-struct
+                            (or (second (assoc :conc-name struct-options))
+                                (concatenate-symbol class-name "-")))))
     `(progn
-      ,@(if export
-            `((export (list ',current-extractor-function-name
+      ,(when export-symbols
+             `(export (list ',extractor-name
                        ',with-new-macro-name
-                       ',with-macro-name))))
+                       ',with-macro-name)))
       ;; generate the context class definition
-      (defclass ,class-name ,supers
-        ,(if chain-parents
-             (append `((parent-context
-                        :initform nil
-                        :accessor parent-context-of)) direct-slots)
-             direct-slots))
+      ,(when create-class
+             `(,defclass-macro-name ,class-name ,direct-superclasses
+               ,(if chain-parents
+                    (append `((parent-context nil :accessor parent-context-of)) direct-slots) ; accessor is explicitly given to force it to be interned in this package
+                    direct-slots)))
+      ,(when create-struct
+             `(defstruct (,name ,@struct-options)
+               ,@(if chain-parents
+                     (append `((parent-context nil :type (or null ,class-name))) direct-slots)
+                     direct-slots)))
       ;; generate the with-new-... macro
       (defmacro ,with-new-macro-name ((&rest initargs &key &allow-other-keys)
                                       &body forms)
-        `(let ((,',special-var-name (make-instance ',',name ,@initargs)))
-          (declare (special ,',special-var-name))
+        `(,',with-macro-name ,,(if create-struct
+                                   ``(,',struct-constructor-name ,@initargs)
+                                   ``(make-instance ',',class-name ,@initargs))
           ,@forms))
       ;; generate the with-... macro
       (defmacro ,with-macro-name (context &body forms)
-        (with-unique-names (context-instance parent)
+        (let ((context-instance (gensym "CONTEXT-INSTANCE"))
+              (parent (gensym "PARENT")))
           (declare (ignorable parent))
           `(let* ((,context-instance ,context)
                   ,@,(when chain-parents
-                           ``((,parent (when (,',has-checker-function-name)
-                                         (,',current-extractor-function-name)))))
+                           ``((,parent (when (,',has-checker-name)
+                                         (,',extractor-name)))))
                   (,',special-var-name ,context-instance))
             (declare (special ,',special-var-name))
             ,@,(when chain-parents
-                     ``((setf (parent-context-of ,context-instance) ,parent)))
+                     ``((setf (,',(if create-struct
+                                      (concatenate-symbol struct-conc-name "parent-context")
+                                      'parent-context-of) ,context-instance)
+                         ,parent)))
             (unless ,context-instance
-              (error ,,(strcat "Called with nil " name-in-message)))
+              (error ,',(strcat "Called with nil " (string-downcase name))))
             ,@forms)))
       ;; generate the in-... macro
       (defmacro ,(concatenate-symbol "in-" name) (var-name-or-slot-name-list &body forms)
         (let ((slots (when (listp var-name-or-slot-name-list)
                        var-name-or-slot-name-list)))
           (if slots
-              `(with-slots ,slots (,',current-extractor-function-name)
+              `(with-slots ,slots (,',extractor-name)
                 ,@forms)
-              `(let ((,var-name-or-slot-name-list (,',current-extractor-function-name)))
+              `(let ((,var-name-or-slot-name-list (,',extractor-name)))
                 (unless ,var-name-or-slot-name-list
-                  (error ,,(strcat "There's no " name-in-message)))
+                  (error ,',(strcat "There's no " (string-downcase name))))
                 ,@forms))))
       ;; generate the current-... function
-      (defun ,current-extractor-function-name ()
-        (declare (inline) (special ,special-var-name))
-        ,special-var-name)
+      (defun ,extractor-name ()
+        (declare (inline))
+        (symbol-value ',special-var-name))
       ;; generate the has-... function
-      (defun ,has-checker-function-name ()
+      (defun ,has-checker-name ()
         (declare (inline))
         (boundp ',special-var-name)))))
