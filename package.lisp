@@ -30,11 +30,14 @@
   (:use :cl :closer-mop :arnesi)
 
   (:export #:computed-class
-           #:compute-as
+           #:define-computed-universe
            #:self
            #:invalidate-computed-slot
            #:make-slot-uncomputed
            #:recompute-slot))
+
+(defpackage #:computed-class-test
+  (:use :cl :computed-class :closer-mop :arnesi :5am))
 
 (in-package :computed-class)
 

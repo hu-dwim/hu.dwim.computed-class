@@ -57,12 +57,22 @@
 ;;;;;;;;;;;;;;;;;;;
 ;;; Computed states
 
-(defparameter *pulse* 0
-  "This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor. On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original slot was last computed then this counter will not change. The first valid pulse value is 0.")
-(declaim (type integer *pulse*))
+(defstruct (computed-universe (:conc-name cu-))
+  ;; This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor.
+  ;; On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original
+  ;; slot was last computed then this counter will not change. The first valid pulse value is 0.
+  (pulse 0 :type integer)
+  (name nil :type (or null string)))
 
-(defun incf-pulse ()
-  (incf *pulse*))
+(defparameter *default-universe* (make-computed-universe :name "Default computed universe"))
+
+(defun incf-pulse (computed-state)
+  (declare (inline) (type computed-state computed-state))
+  (incf (cu-pulse (computed-state-universe computed-state))))
+
+(defun current-pulse (computed-state)
+  (declare (inline) (type computed-state computed-state))
+  (cu-pulse (computed-state-universe computed-state)))
 
 (defparameter *bypass-computed-slot-value-using-class* #f
   "This specifies whether slot-value and friends should bypass the computed slot behaviour and fallback to the standard behavior.")
@@ -73,6 +83,7 @@
 
 (defstruct computed-state
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
+  (universe nil :type computed-universe)
   (pulse
    -1
    :type integer)
@@ -126,7 +137,8 @@
   (if (and (or (eq name 'computed-states)
                (not computed))
            (or (not (consp initform))
-               (not (eq (car initform) 'compute-as))))
+               (not (symbolp (first initform)))
+               (not (get (first initform) 'computed-as-macro-p))))
       (call-next-method)
       (find-class 'computed-direct-slot-definition)))
 
@@ -191,14 +203,15 @@
           ((not (typep new-value 'computed-state))
            (when computed-state
              (setf (computed-state-used-computed-states computed-state) nil)
-             (setf (computed-state-pulse computed-state) (incf-pulse)))
+             (setf (computed-state-pulse computed-state) (incf-pulse computed-state)))
            (call-next-method))
           (t
+           (setf computed-state new-value)
            (setf (computed-state-object new-value) object)
            (setf (computed-state-slot new-value) slot)
            (setf (computed-state-pulse new-value) +invalid-pulse+)
-           (setf (computed-state-for object slot) new-value)
-           (incf-pulse)))))
+           (setf (computed-state-for object slot) computed-state)
+           (incf-pulse computed-state)))))
 
 (defmethod slot-boundp-using-class ((class computed-class)
                                     (object computed-object)
@@ -270,7 +283,7 @@
                       (not (computed-value-equal-p old-value new-value))))))
         (when store-new-value-p
           (setf (cached-slot-value-using-class class object slot) new-value)
-          (setf (computed-state-pulse computed-state) *pulse*))
+          (setf (computed-state-pulse computed-state) (current-pulse computed-state)))
         new-value))))
 
 (defun slot-value-valid-p (object slot)
@@ -280,7 +293,7 @@
          (pulse (computed-state-pulse computed-state)))
     (log.debug "Validating object ~A for slot ~A with pulse: ~A" object slot pulse)
     (let ((result
-           (or (= *pulse* pulse)
+           (or (= (current-pulse computed-state) pulse)
                (and (not (= pulse +invalid-pulse+))
                     (or (not computed-state)
                         (every (lambda (computed-state)
@@ -291,7 +304,7 @@
                                                       (computed-state-pulse used-computed-state))))
                                    (log.debug "Comparing object ~A for slot ~A with pulse ~A to object ~A for slot ~A with pulse ~A"
                                               object slot pulse used-object used-slot used-pulse)
-                                   (or (not used-computed-state)
+                                   (or (not used-pulse) ; === (not used-computed-state)
                                        (and (> pulse used-pulse)
                                             (slot-value-valid-p used-object used-slot)))))
                                (computed-state-used-computed-states computed-state)))))))
@@ -316,9 +329,17 @@
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
 
-(defmacro compute-as (&body form)
-  "Use this macro when setting the value of a computed slot to a computation."
-  `(make-computed-state :form ',form :compute-as (lambda (self) (declare (ignorable self)) ,@form)))
+(defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
+                                                                       (format nil "~S" compute-as-macro-name))))
+  "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
+  ;; mark on the symbol that this is a compute-as macro
+  (declare (type symbol compute-as-macro-name))
+  (setf (get compute-as-macro-name 'computed-as-macro-p) t)
+  `(defmacro ,compute-as-macro-name (&body form)
+    ,(strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")
+    (unless (get ',compute-as-macro-name 'computed-universe)
+      (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
+    `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe) :form ',form :compute-as (lambda (self) (declare (ignorable self)) ,@form))))
 
 (defgeneric computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")

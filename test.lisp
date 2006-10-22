@@ -20,13 +20,20 @@
 ;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 ;;; IN THE SOFTWARE.
 
-(in-package :computed-class)
+(in-package #:computed-class-test)
 
-(enable-sharp-boolean-syntax)
+(eval-always
+  (import (let ((*package* (find-package :computed-class)))
+            (read-from-string "(find-slot computed-state-for computed-effective-slot-definition current-pulse)"))))
+
+(computed-class::enable-sharp-boolean-syntax)
 
 (def-suite :computed-class :description "Computed class tests")
 
 (in-suite :computed-class)
+
+(define-computed-universe compute-as :name "Global computed-class-test universe")
+;; TODO make tests for (define-computed-universe separated-compute-as :name "Separated computed-class-test universe")
 
 ;;;;;;;;;;;;;;;;;;
 ;;; defclass tests
@@ -100,12 +107,14 @@
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test
                                 :slot-a (compute-as 1)
-                                :slot-b (compute-as (1+ (slot-a-of self)))))
-         (pulse *pulse*))
-    (setf (slot-a-of object) 2)
-    (is (= *pulse* (+ 1 pulse)))
-    (slot-b-of object)
-    (is (= *pulse* (+ 1 pulse)))))
+                                :slot-b (compute-as (1+ (slot-a-of self))))))
+    (flet ((current-pulse ()
+             (current-pulse (computed-state-for object (find-slot (class-of object) 'slot-a)))))
+      (let ((pulse (current-pulse)))
+        (setf (slot-a-of object) 2)
+        (is (= (current-pulse) (+ 1 pulse)))
+        (slot-b-of object)
+        (is (= (current-pulse) (+ 1 pulse)))))))
 
 (test computed-class/circularity/1
   (let* ((circularity #f)
