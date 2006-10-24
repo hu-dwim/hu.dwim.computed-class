@@ -59,7 +59,8 @@
   (operate 'load-op :fiveam)
   (use-package :5am)
   (operate 'load-op :computed-class-test)
-  (funcall (read-from-string "5am:run!")))
+  (funcall (read-from-string "5am:run!"))
+  (values))
 
 (defmethod operation-done-p ((op test-op) (system (eql (find-system :computed-class))))
   nil)
