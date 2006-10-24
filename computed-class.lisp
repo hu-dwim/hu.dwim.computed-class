@@ -58,9 +58,7 @@
 ;;; Computed states
 
 (defstruct (computed-universe (:conc-name cu-))
-  ;; This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor.
-  ;; On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original
-  ;; slot was last computed then this counter will not change. The first valid pulse value is 0.
+  "This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor. On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original slot was last computed then this counter will not change. The first valid pulse value is 0."
   (pulse 0 :type integer)
   (name nil :type (or null string)))
 
@@ -321,10 +319,10 @@
     (in-recompute-slot-value-contex parent-context
       (loop for ancestor-context = parent-context :then (svc-parent-context ancestor-context)
             while ancestor-context
-            do
-            (unless (or (not (eq object (object-of ancestor-context)))
-                        (not (eq slot (slot-of ancestor-context))))
-              (error "Circularity detected among computed slots"))))))
+            collect (svc-slot ancestor-context) into computed-slots
+            do (unless (or (not (eq object (svc-object ancestor-context)))
+                           (not (eq slot (svc-slot ancestor-context))))
+                 (error "Circularity detected among the computed slots ~A" computed-slots))))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
