@@ -36,8 +36,8 @@
            #:make-slot-uncomputed
            #:recompute-slot))
 
-(defpackage #:computed-class-test
-  (:use :cl :computed-class :closer-mop :arnesi :5am))
+(defpackage :computed-class-test
+  (:use :cl :computed-class :closer-mop :arnesi))
 
 (in-package :computed-class)
 

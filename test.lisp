@@ -20,7 +20,7 @@
 ;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 ;;; IN THE SOFTWARE.
 
-(in-package #:computed-class-test)
+(in-package :computed-class-test)
 
 (eval-always
   (import (let ((*package* (find-package :computed-class)))

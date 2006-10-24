@@ -132,9 +132,9 @@
   t)
 
 (defmethod direct-slot-definition-class ((class computed-class) &key name initform (computed #f) &allow-other-keys)
-  (if (and (or (eq name 'computed-states)
-               (not computed))
-           (or (not (consp initform))
+  (if (and (not computed)
+           (or (eq name 'slot-computed-state-pairs)
+               (not (consp initform))
                (not (symbolp (first initform)))
                (not (get (first initform) 'computed-as-macro-p))))
       (call-next-method)
@@ -322,7 +322,10 @@
             collect (svc-slot ancestor-context) into computed-slots
             do (unless (or (not (eq object (svc-object ancestor-context)))
                            (not (eq slot (svc-slot ancestor-context))))
-                 (error "Circularity detected among the computed slots ~A" computed-slots))))))
+                 (error "Circularity detected among the computed slots ~A"
+                        (loop for ancestor-context = parent-context :then (svc-parent-context ancestor-context)
+                              while ancestor-context
+                              collect (svc-slot ancestor-context))))))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
@@ -332,12 +335,13 @@
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
-  (setf (get compute-as-macro-name 'computed-as-macro-p) t)
-  `(defmacro ,compute-as-macro-name (&body form)
-    ,(strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")
-    (unless (get ',compute-as-macro-name 'computed-universe)
-      (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-    `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe) :form ',form :compute-as (lambda (self) (declare (ignorable self)) ,@form))))
+  `(progn
+    (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
+    (defmacro ,compute-as-macro-name (&body form)
+      ,(strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")
+      (unless (get ',compute-as-macro-name 'computed-universe)
+        (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
+      `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe) :form ',form :compute-as (lambda (self) (declare (ignorable self)) ,@form)))))
 
 (defgeneric computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")
