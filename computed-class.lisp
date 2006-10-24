@@ -322,8 +322,8 @@
       (loop for ancestor-context = parent-context :then (svc-parent-context ancestor-context)
             while ancestor-context
             do
-            (unless (or (not (eq object (svc-object ancestor-context)))
-                        (not (eq slot (svc-slot ancestor-context))))
+            (unless (or (not (eq object (object-of ancestor-context)))
+                        (not (eq slot (slot-of ancestor-context))))
               (error "Circularity detected among computed slots"))))))
 
 ;;;;;;;;;;;;;;;;;;;;
