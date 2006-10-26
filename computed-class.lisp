@@ -222,14 +222,19 @@
       (or (computed-state-for object slot)
           (call-next-method))))
 
-(defmethod shared-initialize :around ((object computed-class) slot-names &rest args
-                                      &key direct-superclasses &allow-other-keys)
-  (remf-keywords args :direct-superclasses)
+(defmethod shared-initialize :around ((class computed-class) slot-names &rest args
+                                      &key direct-superclasses direct-slots &allow-other-keys)
+  (remf-keywords args :direct-superclasses :direct-slots)
   (let* ((computed-object (find-class 'computed-object))
          (direct-superclasses (if (member computed-object direct-superclasses :test 'eq)
                                   direct-superclasses
-                                  (append direct-superclasses (list computed-object)))))
-    (apply #'call-next-method object slot-names :direct-superclasses direct-superclasses args)))
+                                  (append direct-superclasses (list computed-object))))
+         (direct-slots (loop for direct-slot in direct-slots
+                             collect (progn
+                                       (unless (getf direct-slot :computed)
+                                         (remf-keywords direct-slot :computed))
+                                       direct-slot))))
+    (apply #'call-next-method class slot-names :direct-superclasses direct-superclasses :direct-slots direct-slots args)))
 
 (defmethod shared-initialize :before ((object computed-slot-definition) slot-names &key computed &allow-other-keys)
   (declare (ignore object slot-names computed)))

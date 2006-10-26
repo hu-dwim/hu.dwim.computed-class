@@ -53,13 +53,15 @@
   (let ((class
          (defclass computed-3 ()
            ((a)
-            (b :computed #t))
+            (b :computed #f)
+            (c :computed #t))
            (:metaclass computed-class))))
     (flet ((computed-slot-p (slot-name)
              (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
       (finalize-inheritance class)
       (is (not (computed-slot-p 'a)))
-      (is (computed-slot-p 'b)))))
+      (is (not (computed-slot-p 'b)))
+      (is (computed-slot-p 'c)))))
 
 (test computed-class/defclass/4
   (defclass computed-4 ()
