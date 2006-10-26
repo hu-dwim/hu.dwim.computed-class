@@ -106,6 +106,31 @@
     (setf (slot-a-of object-1) 2)
     (is (= 6 (slot-b-of object-2)))))
 
+;; TODO: send a bug report to SBCL's list
+(test computed-class/compute/3
+  (setf (find-class 'sbcl-class-cache-computed-test) nil)
+  (defclass sbcl-class-cache-computed-test ()
+    ((slot-a :accessor slot-a-of :initarg :slot-a)
+     (slot-b :accessor slot-b-of :initarg :slot-b))
+    (:metaclass computed-class))
+  (let ((object (make-instance 'sbcl-class-cache-computed-test :slot-a (compute-as 1) :slot-b 1)))
+    (slot-a-of object)
+    (slot-b-of object))
+  (defclass sbcl-class-cache-computed-test ()
+    ((slot-a :accessor slot-a-of :initarg :slot-a :computed #t)
+     (slot-b :accessor slot-b-of :initarg :slot-b :computed #t))
+    (:metaclass computed-class))
+  (let ((object (make-instance 'sbcl-class-cache-computed-test
+                               :slot-a (compute-as 1)
+                               :slot-b (compute-as (1+ (slot-a-of self))))))
+    (is (= 1 (slot-a-of object)))
+    ;; the next call does not call slot-value-using-class probably because of some accessor method cache?
+    (is (= 2 (slot-b-of object)))
+    (setf (slot-a-of object) 2)
+    ;; the next call does not call slot-value-using-class probably because of some accessor method cache?
+    ;; even slot-value does not call svuc?!
+    (is (= 3 (slot-b-of object)))))
+
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test
                                 :slot-a (compute-as 1)
