@@ -88,13 +88,13 @@
   (validated-at-pulse
    +invalid-pulse+
    :type integer)
-  (used-computed-states
+  (depends-on
    nil
-   :type list)
+   :type list) ; of computed-state's
   ;; TODO: not yet implemented
-  (user-computed-states
+  (depending-on-me
    nil
-   :type list)
+   :type list) ; of computed-state's
   (form
    nil
    :type list)
@@ -204,7 +204,7 @@
           ((not (typep new-value 'computed-state))
            (when computed-state
              (incf-pulse computed-state)
-             (setf (cs-used-computed-states computed-state) nil)
+             (setf (cs-depends-on computed-state) nil)
              (setf (cs-computed-at-pulse computed-state) (current-pulse computed-state))
              (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state)))
            (call-next-method))
@@ -282,7 +282,7 @@
       (log.debug "Recomputing slot ~A" computed-state)
       (let ((new-value (funcall (cs-compute-as computed-state) object))
             (store-new-value-p #t))
-        (setf (cs-used-computed-states computed-state)
+        (setf (cs-depends-on computed-state)
               (svc-used-computed-states context))
         (when (cached-slot-boundp-using-class class object slot)
           (let ((old-value (cached-slot-value-using-class class object slot)))
@@ -315,7 +315,7 @@
             (return-from valid-check (values #t nil)))
           (when (= computed-at-pulse +invalid-pulse+)
             (return-from valid-check (values #f computed-state)))
-          (loop for used-computed-state :in (cs-used-computed-states computed-state)
+          (loop for used-computed-state :in (cs-depends-on computed-state)
                 do (let* ((used-object (cs-object used-computed-state))
                           (used-slot (cs-slot used-computed-state))
                           (current-used-computed-state (computed-state-for used-object used-slot))
