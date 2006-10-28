@@ -34,6 +34,8 @@
            #:self
            #:invalidate-computed-slot
            #:make-slot-uncomputed
+           #:computed-let
+           #:computed-state-for
            #:recompute-slot))
 
 (defpackage :computed-class-test

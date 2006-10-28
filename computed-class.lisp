@@ -83,9 +83,10 @@
    nil
    :type list) ; of computed-state's
   ;; TODO: not yet implemented
-  (depending-on-me
-   nil
-   :type list) ; of computed-state's
+  ;;(depending-on-me but only those that need to be notified)
+  #+debug(depending-on-me
+          nil
+          :type list) ; of computed-state's
   (compute-as
    nil
    :type function)
@@ -106,6 +107,13 @@
           #f
           :type boolean))
 
+(defun computed-state-object-slot-p (computed-state)
+  "Is this computed-state used as a slot of an object?"
+  (declare (type computed-state computed-state)
+           (inline)
+           #.(optimize-declaration))
+  (not (eq (cs-object computed-state) 'not-an-object-slot-state)))
+
 (define-dynamic-context recompute-state-contex
   ((computed-state nil
     :type computed-state)
@@ -123,6 +131,10 @@
 
 (defmethod validate-superclass ((class computed-class) (superclass standard-class))
   t)
+
+(defmethod compute-slots :after ((class computed-class))
+  ;; TODO generate optimized accessors using standard-instance-access
+  )
 
 (defmethod direct-slot-definition-class ((class computed-class) &key initform (computed #f) &allow-other-keys)
   (if (and (not computed)
@@ -283,21 +295,23 @@
             (return-from valid-check (values #t nil)))
           (when (= computed-at-pulse #.+invalid-pulse+)
             (return-from valid-check (values #f computed-state)))
-          (loop for used-computed-state :in (cs-depends-on computed-state)
-                do (let* ((used-object (cs-object used-computed-state))
-                          (used-slot (cs-slot used-computed-state))
-                          (current-used-computed-state (computed-state-or-nil (class-of used-object) used-object used-slot))
+          (loop for depends-on-computed-state :in (cs-depends-on computed-state)
+                do (let* ((used-object (cs-object depends-on-computed-state))
+                          (used-slot (cs-slot depends-on-computed-state))
+                          (current-depends-on-computed-state (if (computed-state-object-slot-p depends-on-computed-state)
+                                                                 (computed-state-or-nil (class-of used-object) used-object used-slot)
+                                                                 depends-on-computed-state))
                           (current-used-computed-at-pulse
-                           (when current-used-computed-state
-                             (cs-computed-at-pulse current-used-computed-state))))
-                     (log.debug "Comparing ~A to ~A" computed-state current-used-computed-state)
+                           (when current-depends-on-computed-state
+                             (cs-computed-at-pulse current-depends-on-computed-state))))
+                     (log.debug "Comparing ~A to ~A" computed-state current-depends-on-computed-state)
                      (when current-used-computed-at-pulse
                        (if (>= computed-at-pulse current-used-computed-at-pulse)
                            (multiple-value-bind (valid-p newer-computed-state)
-                               (computed-state-valid-p current-used-computed-state)
+                               (computed-state-valid-p current-depends-on-computed-state)
                              (unless valid-p
                                (return-from valid-check (values #f newer-computed-state))))
-                           (return-from valid-check (values #f current-used-computed-state))))))
+                           (return-from valid-check (values #f current-depends-on-computed-state))))))
           (values #t nil))
       (declare (type boolean valid-p)
                (type (or null computed-state) newer-computed-state))
@@ -412,13 +426,69 @@
 ;;; Managing computed slot state 
 
 (defun computed-state-or-nil (class object slot)
-  (declare (type computed-object object)
-           (type computed-effective-slot-definition slot)
+  (declare (type (or symbol computed-object) object)
+           (type (or null computed-effective-slot-definition) slot)
            #.(optimize-declaration)
            (inline))
   (the (or null computed-state)
-    (when (slot-boundp-using-class class object slot)
+    (when (and (not (eq object 'not-an-object-slot-state))
+               (slot-boundp-using-class class object slot))
       (let ((result (standard-instance-access object (slot-definition-location slot))))
         (when (computed-state-p result)
             result)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Standalone variables
+
+;; limitations:
+;; - computed-let can only handle variables initialized with (compute-as ...) forms (can be fixed)
+;; - (computed-state-for NAME) works only on one level (probably not trivial to overcome this)
+;; - warnings/notes due to unused functions and optimization
+
+(define-setf-expander computed-state-in-variable-value ())
+
+(defmacro computed-let (vars &body body)
+  "A let* with extra semantics to handle computed variables. For now see the code and the test file for details.
+   Available bindings in the body:
+     - (computed-state-for NAME) A macro to access the place itself, so you can setf closed-over computed variables to new (compute-as ...) forms."
+  (let ((state-variables (loop for (name nil) :in vars
+                               collect (gensym (string name)))))
+    ;; wrap the global computed-state-value accessors and do some extra work specific to handling variables
+    `(flet ((computed-state-value (computed-state)
+             (declare #.(optimize-declaration))
+             (when (has-recompute-state-contex)
+               (in-recompute-state-contex context
+                 (push computed-state (rsc-used-computed-states context))))
+             (computed-state-value computed-state))
+           ((setf computed-state-value) (new-value computed-state)
+             (declare #.(optimize-declaration))
+             #+debug(assert (not (typep new-value 'computed-state)) () "Setting computed-state's into variables should be done through the (computed-state-for var-name) form")
+             (setf (computed-state-value computed-state) new-value)))
+      (symbol-macrolet (,@(loop for (name definition) :in vars
+                                for var = (gensym (string name))
+                                collect var :into vars
+                                collect (list name `(computed-state-value ,var)) :into result
+                                finally (progn
+                                          (setf state-variables vars)
+                                          (return result)))
+                          ;; these are NAME-state definitions that expand to the gensym-ed variables,
+                          ;; so through them you can access the actual states directly (e.g. to set
+                          ;; state variables captured by various closures) 
+                          ,@(loop for (name definition) :in vars
+                                  for var :in state-variables
+                                  for state-name = (concatenate-symbol name "-state")
+                                  collect (list state-name var)))
+        (macrolet ((computed-state-for (variable)
+                     (case variable
+                       ,@(loop for (name nil) :in vars
+                               for state-variable :in state-variables
+                               collect `(,name ',state-variable))
+                       (t (error "Limitation: computed-state-for can only access the state variables in the closest computed-let form. Variable ~S was not found there." variable)))))
+          (let* ,(loop for (name definition) :in vars
+                       for var :in state-variables
+                       collect (list var definition))
+            (declare (ignorable ,@state-variables))
+            ,@body))))))
+
+
 
