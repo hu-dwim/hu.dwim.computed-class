@@ -351,17 +351,25 @@
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
-  `(eval-when (:compile-toplevel :load-toplevel)
-    (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
-    (unless (get ',compute-as-macro-name 'computed-universe)
-      (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-    (defmacro ,compute-as-macro-name (&body form)
-      ,(strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")
-      `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
-        #+debug :form #+debug ',form
-        :compute-as (lambda (self current-value)
-                      (declare (ignorable self current-value))
-                      ,@form)))))
+  (let ((verbose-compute-as-macro-name (concatenate-symbol compute-as-macro-name "*"))
+        (docstring (strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
+    `(eval-when (:compile-toplevel :load-toplevel)
+      (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
+      (unless (get ',compute-as-macro-name 'computed-universe)
+        (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
+      (defmacro ,verbose-compute-as-macro-name ((&key slot) &body form)
+        ,docstring
+        `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
+          #+debug :form #+debug ',form
+          :compute-as (lambda (self current-value)
+                        (declare (ignorable self current-value))
+                        ,@form)
+          ,@(when slot
+              (list :slot slot))))
+      (defmacro ,compute-as-macro-name (&body body)
+        ,docstring
+        `(,',verbose-compute-as-macro-name ()
+          ,@body)))))
 
 (defgeneric computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")
