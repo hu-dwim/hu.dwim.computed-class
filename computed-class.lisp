@@ -91,13 +91,11 @@
    :type function)
   ;; these two are used for slots
   (object
-   nil
-   :type (or null computed-object))
+   'not-an-object-slot-state
+   :type (or symbol computed-object))
   (slot
    nil
-   :type (or null computed-effective-slot-definition))
-  ;; this is used for variables
-  ;; TODO: not yet implemented
+   :type (or symbol computed-effective-slot-definition))
   (value
    nil
    :type t)
@@ -328,9 +326,9 @@
                         slot))
          (attached-p #+debug(cs-attached-to-object-p computed-state)
                      #-debug #\?))
-    (if object
-        (format stream "~A/<#~A :pulse ~A :attached ~A>" object slot-name (cs-computed-at-pulse computed-state) attached-p)
-        (format stream "<#~A :pulse ~A>" slot-name (cs-computed-at-pulse computed-state)))))
+    (if (eq object 'not-an-object-slot-state)
+        (format stream "<#~A :pulse ~A>" slot-name (cs-computed-at-pulse computed-state))
+        (format stream "~A/<#~A :pulse ~A :attached ~A>" object slot-name (cs-computed-at-pulse computed-state) attached-p))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
