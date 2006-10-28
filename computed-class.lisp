@@ -133,9 +133,34 @@
 (defmethod validate-superclass ((class computed-class) (superclass standard-class))
   t)
 
-(defmethod compute-slots :after ((class computed-class))
-  ;; TODO generate optimized accessors using standard-instance-access
-  )
+#+(or :generate-custom-reader :generate-custom-writer)
+(defmethod finalize-inheritance :after ((class computed-class))
+  (loop for direct-slot :in (class-direct-slots class)
+        for effective-slot = (find-slot class (slot-definition-name direct-slot)) do
+        (assert (and (<= (length (slot-definition-readers direct-slot)) 1)
+                     (<= (length (slot-definition-writers direct-slot)) 1))
+                () "Computed class does not support multiple readers and/or writers.")
+        (let ((reader (first (slot-definition-readers direct-slot)))
+              (writer (first (slot-definition-writers direct-slot))))
+          #+generate-custom-reader
+          (when reader
+            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own reader later (?!) than this
+            (setf (slot-definition-readers direct-slot) nil)
+            (let ((reader-gf (ensure-generic-function reader))) 
+              (ensure-method reader-gf
+                             `(lambda (object)
+                               ,(slot-value-using-class-body class effective-slot))
+                             :specializers (list class))))
+          #+generate-custom-writer
+          (when writer
+            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own writer later (?!) than this
+            (setf (slot-definition-writers direct-slot) nil)
+            (ensure-generic-function writer)
+            (let ((writer-gf (ensure-generic-function writer))) 
+              (ensure-method writer-gf
+                             `(lambda (new-value object)
+                               ,(setf-slot-value-using-class-body class effective-slot))
+                             :specializers (list (find-class 't) class)))))))
 
 (defmethod direct-slot-definition-class ((class computed-class) &key initform (computed #f) &allow-other-keys)
   (if (and (not computed)
@@ -159,41 +184,66 @@
     (declare (special %computed-effective-slot-definition%))
     (call-next-method)))
 
+(eval-always
+  ;; the purpose of this is to be able to share the code between the accessors and the real svuc.
+  ;; (iow, to avoid fatal copy-paste errors)
+  ;; we evaluate some computations at call time when we have the information
+  (defun slot-value-using-class-body (&optional class slot)
+    `(let ((computed-state ,(if (and class slot)
+                                ;; TODO this slot-boundp-using-class is probably expensive here compared to the rest
+                                `(when (slot-boundp-using-class ,class object ,slot)
+                                  ,(standard-instance-access-form 'object (slot-definition-location slot)))
+                                `(computed-state-or-nil class object slot))))
+      (if computed-state
+          (progn
+            (when (has-recompute-state-contex)
+              (in-recompute-state-contex context
+                (push computed-state (rsc-used-computed-states context))))
+            (computed-state-value computed-state))
+          ,(if slot
+               `(standard-instance-access-form 'object ,(slot-definition-location slot))
+               `(standard-instance-access-form 'object '(slot-definition-location slot))))))
+
+  (defun setf-slot-value-using-class-body (&optional class slot)
+    `(progn
+      #+debug(when ,(when (and class slot)
+                          `(slot-boundp-using-class ,class object ,slot)
+                          `(slot-boundp-using-class class object slot))
+               (let ((old-computed-state ,(if slot
+                                              (standard-instance-access-form 'object (slot-definition-location slot))
+                                              (standard-instance-access-form 'object '(slot-definition-location slot)))))
+                 (when (computed-state-p old-computed-state)
+                   (setf (cs-attached-to-object-p old-computed-state) #f))))
+      (if (typep new-value 'computed-state)
+          (let ((new-computed-state new-value))
+            #+debug(setf (cs-attached-to-object-p new-computed-state) #t)
+            (setf (cs-object new-computed-state) object)
+            (setf (cs-slot new-computed-state) ,(or slot 'slot))
+            (invalidate-computed-state new-computed-state)
+            (incf-pulse new-computed-state)
+            ,(if slot
+                 (setf-standard-instance-access-form 'new-computed-state 'object (slot-definition-location slot))
+                 (setf-standard-instance-access-form 'new-computed-state 'object '(slot-definition-location slot))))
+          (let ((computed-state (computed-state-or-nil ,(or class 'class) object ,(or slot 'slot))))
+            (if computed-state
+                (setf (computed-state-value computed-state) new-value)
+                ,(if slot
+                     (setf-standard-instance-access-form 'new-value 'object (slot-definition-location slot))
+                     (setf-standard-instance-access-form 'new-value 'object '(slot-definition-location slot))))))
+      new-value)))
+
 (defmethod slot-value-using-class ((class computed-class)
                                    (object computed-object)
                                    (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  (let ((computed-state (computed-state-or-nil class object slot)))
-    (if computed-state
-        (progn
-          (when (has-recompute-state-contex)
-            (in-recompute-state-contex context
-              (push computed-state (rsc-used-computed-states context))))
-          (computed-state-value computed-state))
-        (call-next-method))))
+  #.(slot-value-using-class-body))
 
 (defmethod (setf slot-value-using-class) (new-value
                                           (class computed-class)
                                           (object computed-object)
                                           (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  #+debug(when (slot-boundp-using-class class object slot)
-           (let ((old-computed-state (standard-instance-access object (slot-definition-location slot))))
-             (when (computed-state-p old-computed-state)
-               (setf (cs-attached-to-object-p old-computed-state) #f))))
-  (if (typep new-value 'computed-state)
-      (let ((new-computed-state new-value))
-        #+debug(setf (cs-attached-to-object-p new-computed-state) #t)
-        (setf (cs-object new-computed-state) object)
-        (setf (cs-slot new-computed-state) slot)
-        (invalidate-computed-state new-computed-state)
-        (incf-pulse new-computed-state)
-        (call-next-method))
-      (let ((computed-state (computed-state-or-nil class object slot)))
-        (if computed-state
-            (setf (computed-state-value computed-state) new-value)
-            (call-next-method))))
-  new-value)
+  #.(setf-slot-value-using-class-body))
 
 (defun computed-state-value (computed-state)
   "Read the value, recalculate when needed."
@@ -435,7 +485,7 @@
   (the (or null computed-state)
     (when (and (not (eq object 'not-an-object-slot-state))
                (slot-boundp-using-class class object slot))
-      (let ((result (standard-instance-access object (slot-definition-location slot))))
+      (let ((result #.(standard-instance-access-form 'object '(slot-definition-location slot))))
         (when (computed-state-p result)
             result)))))
 

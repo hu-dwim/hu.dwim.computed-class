@@ -188,8 +188,9 @@
   (finishes
     (flet ((measure (object)
              (setf (slot-a-of object) 0)
+             #+sbcl(sb-ext:gc :full t)
              (time
-              (dotimes (counter 1000000)
+              (dotimes (counter 2000000)
                 (slot-b-of object)))))
       (measure (make-instance 'standard-test))
       (measure (make-instance 'computed-test
@@ -199,6 +200,7 @@
 (test computed-class/timing/2
   (finishes
     (flet ((measure (object)
+             #+sbcl(sb-ext:gc :full t)
              (time
               (dotimes (counter 1000000)
                 (setf (slot-a-of object) counter)
