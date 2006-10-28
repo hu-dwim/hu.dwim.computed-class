@@ -36,6 +36,15 @@
       '(optimize (speed 3) (debug 0) (safety 0))
       (values)))
 
+(defclass computed-class-file (cl-source-file)
+  ())
+
+(defmethod perform :around ((op operation) (component computed-class-file))
+  (let ((*features* *features*))
+    (unless *load-with-optimize-p*
+      (push :debug *features*))
+    (call-next-method)))
+
 (defsystem :computed-class
   :version "0.1"
   :author ("Attila Lendvai <attila.lendvai@gmail.com>"
@@ -47,6 +56,7 @@
   :licence "BSD"
   :description "Computed class is a class meta object which supports computed slots."
   :depends-on (:arnesi :closer-mop)
+  :default-component-class computed-class-file
   :components
   ((:file "package")
    (:file "duplicates" :depends-on ("package"))

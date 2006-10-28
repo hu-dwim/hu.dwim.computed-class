@@ -86,9 +86,6 @@
   (depending-on-me
    nil
    :type list) ; of computed-state's
-  (form
-   nil
-   :type list)
   (compute-as
    nil
    :type function)
@@ -103,7 +100,13 @@
   ;; TODO: not yet implemented
   (value
    nil
-   :type t))
+   :type t)
+  #+debug(form
+          nil
+          :type list)
+  #+debug(attached-to-object-p
+          #f
+          :type boolean))
 
 (define-dynamic-context recompute-state-contex
   ((computed-state nil
@@ -164,8 +167,13 @@
                                           (object computed-object)
                                           (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
+  #+debug(when (slot-boundp-using-class class object slot)
+           (let ((old-computed-state (standard-instance-access object (slot-definition-location slot))))
+             (when (computed-state-p old-computed-state)
+               (setf (cs-attached-to-object-p old-computed-state) #f))))
   (if (typep new-value 'computed-state)
       (let ((new-computed-state new-value))
+        #+debug(setf (cs-attached-to-object-p new-computed-state) #t)
         (setf (cs-object new-computed-state) object)
         (setf (cs-slot new-computed-state) slot)
         (invalidate-computed-state new-computed-state)
@@ -317,9 +325,11 @@
          (slot-name (if (and slot
                              (typep slot 'slot-definition))
                         (slot-definition-name slot)
-                        slot)))
+                        slot))
+         (attached-p #+debug(cs-attached-to-object-p computed-state)
+                     #-debug #\?))
     (if object
-        (format stream "~A/<#~A :pulse ~A>" object slot-name (cs-computed-at-pulse computed-state))
+        (format stream "~A/<#~A :pulse ~A :attached ~A>" object slot-name (cs-computed-at-pulse computed-state) attached-p)
         (format stream "<#~A :pulse ~A>" slot-name (cs-computed-at-pulse computed-state)))))
 
 ;;;;;;;;;;;;;;;;;;;;
@@ -337,9 +347,10 @@
     (defmacro ,compute-as-macro-name (&body form)
       ,(strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")
       `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
-        :form ',form :compute-as (lambda (self current-value)
-                                   (declare (ignorable self current-value))
-                                   ,@form)))))
+        #+debug :form #+debug ',form
+        :compute-as (lambda (self current-value)
+                      (declare (ignorable self current-value))
+                      ,@form)))))
 
 (defgeneric computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")
