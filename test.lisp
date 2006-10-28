@@ -24,7 +24,7 @@
 
 (eval-always
   (import (let ((*package* (find-package :computed-class)))
-            (read-from-string "(find-slot computed-state-for computed-effective-slot-definition current-pulse)"))))
+            (read-from-string "(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse)"))))
 
 (computed-class::enable-sharp-boolean-syntax)
 
@@ -136,7 +136,7 @@
                                 :slot-a (compute-as 1)
                                 :slot-b (compute-as (1+ (slot-a-of self))))))
     (flet ((current-pulse ()
-             (current-pulse (computed-state-for object (find-slot (class-of object) 'slot-a)))))
+             (current-pulse (computed-state-or-nil (class-of object) object (find-slot (class-of object) 'slot-a)))))
       (let ((pulse (current-pulse)))
         (setf (slot-a-of object) 2)
         (is (= (current-pulse) (+ 1 pulse)))

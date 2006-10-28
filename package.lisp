@@ -27,7 +27,7 @@
 
   (:shadow #:log)
   
-  (:use :cl :closer-mop :arnesi)
+  (:use :cl :closer-mop :arnesi :computed-class-system)
 
   (:export #:computed-class
            #:define-computed-universe

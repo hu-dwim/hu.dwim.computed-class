@@ -46,12 +46,7 @@
   ())
 
 (defclass computed-object ()
-  ((slot-computed-state-pairs
-    :initform nil
-    :type list
-    :accessor slot-computed-state-pairs-of
-    :initarg :computed-states
-    :documentation "An alist of slot meta objects and corresponding computed-state structure objects."))
+  ()
   (:documentation "This is the base class for all computed classes. The class need not be listed in the direct classes when defining a computed class because the meta class takes care adding it."))
 
 ;;;;;;;;;;;;;;;;;;;
@@ -72,10 +67,6 @@
   (declare (inline) (type computed-state computed-state))
   (cu-pulse (cs-universe computed-state)))
 
-(defparameter *bypass-computed-slot-value-using-class* #f
-  "This specifies whether slot-value and friends should bypass the computed slot behaviour and fallback to the standard behavior.")
-(declaim (type boolean *bypass-computed-slot-value-using-class*))
-
 (defconstant +invalid-pulse+ -1
   "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
@@ -83,10 +74,10 @@
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
   (universe nil :type computed-universe)
   (computed-at-pulse
-   +invalid-pulse+
+   #.+invalid-pulse+
    :type integer)
   (validated-at-pulse
-   +invalid-pulse+
+   #.+invalid-pulse+
    :type integer)
   (depends-on
    nil
@@ -114,16 +105,14 @@
    nil
    :type t))
 
-(define-dynamic-context recompute-slot-value-contex
-  ((used-computed-states nil
-    :type list)
-   (object nil
-    :type computed-object)
-   (slot nil
-    :type computed-effective-slot-definition))
+(define-dynamic-context recompute-state-contex
+  ((computed-state nil
+    :type computed-state)
+   (used-computed-states nil
+    :type list))
   :chain-parents #t
   :create-struct #t
-  :struct-options ((:conc-name svc-)))
+  :struct-options ((:conc-name rsc-)))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; CLOS MOP related
@@ -134,10 +123,9 @@
 (defmethod validate-superclass ((class computed-class) (superclass standard-class))
   t)
 
-(defmethod direct-slot-definition-class ((class computed-class) &key name initform (computed #f) &allow-other-keys)
+(defmethod direct-slot-definition-class ((class computed-class) &key initform (computed #f) &allow-other-keys)
   (if (and (not computed)
-           (or (eq name 'slot-computed-state-pairs)
-               (not (consp initform))
+           (or (not (consp initform))
                (not (symbolp (first initform)))
                (not (get (first initform) 'computed-as-macro-p))))
       (call-next-method)
@@ -157,70 +145,42 @@
     (declare (special %computed-effective-slot-definition%))
     (call-next-method)))
 
-(defgeneric cached-slot-value (object slot-name)
-  (:method ((object computed-object) (slot-name symbol))
-           (let ((*bypass-computed-slot-value-using-class* #t))
-             (slot-value object slot-name))))
-
-(defgeneric (setf cached-slot-value) (new-value object slot-name)
-  (:method (new-value (object computed-object) (slot-name symbol))
-           (let ((*bypass-computed-slot-value-using-class* #t))
-             (setf (slot-value object slot-name) new-value))))
-
-(defgeneric cached-slot-value-using-class (class object slot)
-  (:method ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
-           (let ((*bypass-computed-slot-value-using-class* #t))
-             (slot-value-using-class class object slot))))
-
-(defgeneric (setf cached-slot-value-using-class) (new-value class object slot)
-  (:method (new-value (class computed-class) (object computed-object) (slot computed-effective-slot-definition))
-           (let ((*bypass-computed-slot-value-using-class* #t))
-             (setf (slot-value-using-class class object slot) new-value))))
-
-(defgeneric cached-slot-boundp-using-class (class object slot)
-  (:method ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
-           (let ((*bypass-computed-slot-value-using-class* #t))
-             (slot-boundp-using-class class object slot))))
-
-(defmethod slot-value-using-class :before ((class computed-class)
-                                           (object computed-object)
-                                           (slot computed-effective-slot-definition))
-  (let ((computed-state (computed-state-for object slot)))
-    (when (and computed-state
-               (has-recompute-slot-value-contex))
-      (in-recompute-slot-value-contex context
-        (push computed-state (svc-used-computed-states context))))
-    (unless (or *bypass-computed-slot-value-using-class*
-                (not computed-state))
-      (ensure-valid-slot-value class object slot computed-state))))
+(defmethod slot-value-using-class ((class computed-class)
+                                   (object computed-object)
+                                   (slot computed-effective-slot-definition))
+  (declare #.(optimize-declaration))
+  (let ((computed-state (computed-state-or-nil class object slot)))
+    (if computed-state
+        (progn
+          (when (has-recompute-state-contex)
+            (in-recompute-state-contex context
+              (push computed-state (rsc-used-computed-states context))))
+          (ensure-computed-state-is-valid computed-state)
+          (cs-value computed-state))
+        (call-next-method))))
 
 (defmethod (setf slot-value-using-class) (new-value
                                           (class computed-class)
                                           (object computed-object)
                                           (slot computed-effective-slot-definition))
-  (let ((computed-state (computed-state-for object slot)))
-    (cond (*bypass-computed-slot-value-using-class*
-           (call-next-method))
-          ((not (typep new-value 'computed-state))
-           (when computed-state
-             (incf-pulse computed-state)
-             (setf (cs-depends-on computed-state) nil)
-             (setf (cs-computed-at-pulse computed-state) (current-pulse computed-state))
-             (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state)))
-           (call-next-method))
-          (t
-           (let ((new-computed-state new-value))
-             (setf (computed-state-for object slot) new-computed-state)
-             (invalidate-computed-state new-computed-state)
-             (incf-pulse new-computed-state))))))
-
-(defmethod slot-boundp-using-class ((class computed-class)
-                                    (object computed-object)
-                                    (slot computed-effective-slot-definition))
-  (if *bypass-computed-slot-value-using-class*
-      (call-next-method)
-      (or (computed-state-for object slot)
-          (call-next-method))))
+  (declare #.(optimize-declaration))
+  (if (typep new-value 'computed-state)
+      (let ((new-computed-state new-value))
+        (setf (cs-object new-computed-state) object)
+        (setf (cs-slot new-computed-state) slot)
+        (invalidate-computed-state new-computed-state)
+        (incf-pulse new-computed-state)
+        (call-next-method))
+      (let ((computed-state (computed-state-or-nil class object slot)))
+        (if computed-state
+            (progn
+              (incf-pulse computed-state)
+              (setf (cs-depends-on computed-state) nil)
+              (setf (cs-computed-at-pulse computed-state) (current-pulse computed-state))
+              (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state))
+              (setf (cs-value computed-state) new-value))
+            (call-next-method))))
+  new-value)
 
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
                                       &key direct-superclasses direct-slots &allow-other-keys)
@@ -236,11 +196,9 @@
                                        direct-slot))))
     (apply #'call-next-method class slot-names :direct-superclasses direct-superclasses :direct-slots direct-slots args)))
 
+;; this definition is here to allow a :computed argument for the slot definition
 (defmethod shared-initialize :before ((object computed-slot-definition) slot-names &key computed &allow-other-keys)
   (declare (ignore object slot-names computed)))
-
-(defmethod initialize-instance :before ((object computed-object) &key &allow-other-keys)
-  (setf (slot-computed-state-pairs-of object) nil))
 
 ;;;;;;;;;;;;;;;;;;
 ;;; Helper methods
@@ -254,58 +212,49 @@
 
 (defun find-slot (class slot-name)
   (declare (type standard-class class)
-           (type symbol slot-name))
-  (find slot-name (the list (class-slots class)) :key 'slot-definition-name))
+           (type symbol slot-name)
+           #.(optimize-declaration)
+           (inline))
+  (find slot-name (the list (class-slots class)) :key #'slot-definition-name))
 
-(defun ensure-valid-slot-value (class object slot computed-state)
-  (declare (type computed-class class)
-           (type computed-object object)
-           (type computed-effective-slot-definition slot)
-           (type computed-state computed-state)
-           (optimize (speed 3) (debug 0) (safety 0)))
+(defun ensure-computed-state-is-valid (computed-state)
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
   (multiple-value-bind (valid-p newer-computed-state)
-      (slot-value-valid-p object slot computed-state)
+      (computed-state-valid-p computed-state)
     (declare (ignorable newer-computed-state))
     (unless valid-p 
-      (log.debug "About to recompute ~A because of ~A is newer" computed-state newer-computed-state)
-      (check-circularity object slot)
-      (recompute-slot-value class object slot computed-state)))
+      (log.debug "About to recompute ~A because ~A is newer" computed-state newer-computed-state)
+      (check-circularity computed-state)
+      (recompute-computed-state computed-state)))
   (values))
 
-(defun recompute-slot-value (class object slot computed-state)
-  (declare (type computed-class class)
-           (type computed-object object)
-           (type computed-effective-slot-definition slot)
-           (type computed-state computed-state))
-  (with-new-recompute-slot-value-contex (:object object :slot slot)
-    (in-recompute-slot-value-contex context
+(defun recompute-computed-state (computed-state)
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
+  (with-new-recompute-state-contex (:computed-state computed-state)
+    (in-recompute-state-contex context
       (log.debug "Recomputing slot ~A" computed-state)
-      (let ((new-value (funcall (cs-compute-as computed-state) object))
-            (store-new-value-p #t))
-        (setf (cs-depends-on computed-state)
-              (svc-used-computed-states context))
-        (when (cached-slot-boundp-using-class class object slot)
-          (let ((old-value (cached-slot-value-using-class class object slot)))
-            (setf store-new-value-p
-                  (if (and (primitive-p old-value)
-                           (primitive-p new-value))
-                      (not (equal old-value new-value))
-                      (not (computed-value-equal-p old-value new-value))))))
+      (let* ((object (cs-object computed-state))
+             (old-value (cs-value computed-state))
+             (new-value (funcall (cs-compute-as computed-state) object old-value))
+             (store-new-value-p (if (and (primitive-p old-value)
+                                         (primitive-p new-value))
+                                    (not (equal old-value new-value))
+                                    (not (computed-value-equal-p old-value new-value)))))
+        (setf (cs-depends-on computed-state) (rsc-used-computed-states context))
         (when (or store-new-value-p
-                  (= (cs-computed-at-pulse computed-state) +invalid-pulse+))
+                  (= (cs-computed-at-pulse computed-state) #.+invalid-pulse+))
           (setf (cs-computed-at-pulse computed-state) (current-pulse computed-state))
           (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state)))
         (if store-new-value-p
-            (setf (cached-slot-value-using-class class object slot) new-value)
+            (setf (cs-value computed-state) new-value)
             (log.debug "Not storing fresh recomputed value for ~A because it was equal to the cached value." computed-state))
         new-value))))
 
-(defun slot-value-valid-p (object slot computed-state)
-  (declare (type computed-object object)
-           (type computed-effective-slot-definition slot)
-           (type computed-state computed-state))
-  (assert (and (eq object (cs-object computed-state))
-               (eq slot (cs-slot computed-state))))
+(defun computed-state-valid-p (computed-state)
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
   (let ((computed-at-pulse (cs-computed-at-pulse computed-state))
         (validated-at-pulse (cs-validated-at-pulse computed-state)))
     (log.debug "Validating ~A" computed-state)
@@ -313,12 +262,12 @@
         (block valid-check
           (when (= (current-pulse computed-state) validated-at-pulse)
             (return-from valid-check (values #t nil)))
-          (when (= computed-at-pulse +invalid-pulse+)
+          (when (= computed-at-pulse #.+invalid-pulse+)
             (return-from valid-check (values #f computed-state)))
           (loop for used-computed-state :in (cs-depends-on computed-state)
                 do (let* ((used-object (cs-object used-computed-state))
                           (used-slot (cs-slot used-computed-state))
-                          (current-used-computed-state (computed-state-for used-object used-slot))
+                          (current-used-computed-state (computed-state-or-nil (class-of used-object) used-object used-slot))
                           (current-used-computed-at-pulse
                            (when current-used-computed-state
                              (cs-computed-at-pulse current-used-computed-state))))
@@ -326,7 +275,7 @@
                      (when current-used-computed-at-pulse
                        (if (>= computed-at-pulse current-used-computed-at-pulse)
                            (multiple-value-bind (valid-p newer-computed-state)
-                               (slot-value-valid-p used-object used-slot current-used-computed-state)
+                               (computed-state-valid-p current-used-computed-state)
                              (unless valid-p
                                (return-from valid-check (values #f newer-computed-state))))
                            (return-from valid-check (values #f current-used-computed-state))))))
@@ -340,33 +289,38 @@
             (invalidate-computed-state computed-state)))
       (values valid-p newer-computed-state))))
 
-(defun check-circularity (object slot)
-  (declare (type computed-object object)
-           (type computed-effective-slot-definition slot))
-  (when (has-recompute-slot-value-contex)
-    (in-recompute-slot-value-contex parent-context
-      (loop for ancestor-context = parent-context :then (svc-parent-context ancestor-context)
-            while ancestor-context
-            collect (svc-slot ancestor-context) into computed-slots
-            do (unless (or (not (eq object (svc-object ancestor-context)))
-                           (not (eq slot (svc-slot ancestor-context))))
-                 (error "Circularity detected among the computed slots ~A"
-                        (loop for ancestor-context = parent-context :then (svc-parent-context ancestor-context)
-                              while ancestor-context
-                              collect (svc-slot ancestor-context))))))))
+(defun check-circularity (computed-state)
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
+  (when (has-recompute-state-contex)
+    (in-recompute-state-contex context
+      (loop for parent-context = context :then (rsc-parent-context parent-context)
+            while parent-context
+            for parent-computed-state = (rsc-computed-state parent-context)
+            do (when (eq computed-state parent-computed-state)
+                 (error "Circularity detected among the computed slots/variables ~A"
+                        (loop for parent-context = context :then (rsc-parent-context parent-context)
+                              while parent-context
+                              for parent-computed-state = (rsc-computed-state parent-context)
+                              collect (cs-slot parent-computed-state))))))))
 
 (defun invalidate-computed-state (computed-state)
-  (declare (type computed-state computed-state))
-  (setf (cs-computed-at-pulse computed-state) +invalid-pulse+)
-  (setf (cs-validated-at-pulse computed-state) +invalid-pulse+))
+  (declare (type computed-state computed-state)
+           (inline))
+  (setf (cs-computed-at-pulse computed-state) #.+invalid-pulse+)
+  (setf (cs-validated-at-pulse computed-state) #.+invalid-pulse+))
 
 (defun print-computed-state (computed-state stream)
   (declare (type computed-state computed-state))
-  (let* ((slot (cs-slot computed-state))
-         (slot-name (when slot
-                      (slot-definition-name slot))))
-    (format stream "~A/<#~A :pulse ~A>"
-            (cs-object computed-state) slot-name (cs-computed-at-pulse computed-state))))
+  (let* ((object (cs-object computed-state))
+         (slot (cs-slot computed-state))
+         (slot-name (if (and slot
+                             (typep slot 'slot-definition))
+                        (slot-definition-name slot)
+                        slot)))
+    (if object
+        (format stream "~A/<#~A :pulse ~A>" object slot-name (cs-computed-at-pulse computed-state))
+        (format stream "<#~A :pulse ~A>" slot-name (cs-computed-at-pulse computed-state)))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
@@ -383,7 +337,9 @@
     (defmacro ,compute-as-macro-name (&body form)
       ,(strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")
       `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
-        :form ',form :compute-as (lambda (self) (declare (ignorable self)) ,@form)))))
+        :form ',form :compute-as (lambda (self current-value)
+                                   (declare (ignorable self current-value))
+                                   ,@form)))))
 
 (defgeneric computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")
@@ -395,52 +351,44 @@
   (:method ((object computed-object) (slot-name symbol))
            (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (let ((computed-state (computed-state-for object slot)))
-             (invalidate-computed-state computed-state))))
+           (let ((computed-state (computed-state-or-nil (class-of object) object slot)))
+             (if computed-state
+                 (invalidate-computed-state computed-state)
+                 (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object)))))
 
 (defgeneric make-slot-uncomputed (object slot)
   (:documentation "Makes the slot a constant slot with respect to other computed slots.")
   (:method ((object computed-object) (slot-name symbol))
            (make-slot-uncomputed object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (remove-computed-state-for object slot)))
+           (let* ((class (class-of object))
+                  (computed-state (computed-state-or-nil class object slot)))
+             (when computed-state
+               ;; first we must make it unbound, so the (setf slot-value-using-class) will simply (call-next-method) with the new value
+               (slot-makunbound-using-class class object slot)
+               (setf (slot-value-using-class class object slot) (cs-value computed-state))))))
 
 (defgeneric recompute-slot (object slot)
   (:documentation "Enforces the recomputation of the given slot")
   (:method ((object computed-object) (slot-name symbol))
            (recompute-slot object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (recompute-slot-value (class-of object) object slot (computed-state-for object slot))))
+           (let ((computed-state (computed-state-or-nil (class-of object) object slot)))
+             (if computed-state
+                 (recompute-computed-state computed-state)
+                 (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Managing computed slot state 
 
-(defun computed-state-for (object slot)
+(defun computed-state-or-nil (class object slot)
   (declare (type computed-object object)
            (type computed-effective-slot-definition slot)
-           (optimize (speed 3) (debug 0) (safety 0)))
-  ;; the assoc turned out to be 2-3 times slower than a loop and this function is key for performance
-  ;; (the (or null computed-state) (cdr (assoc slot (the list (slot-computed-state-pairs-of object)) :test 'eq))))
+           #.(optimize-declaration)
+           (inline))
   (the (or null computed-state)
-    (let ((computed-states (slot-computed-state-pairs-of object)))      
-      (loop for el :of-type cons :in computed-states
-            when (eq (the computed-effective-slot-definition (car el)) slot)
-            do (return (cdr el))))))
+    (when (slot-boundp-using-class class object slot)
+      (let ((result (standard-instance-access object (slot-definition-location slot))))
+        (when (computed-state-p result)
+            result)))))
 
-(defun (setf computed-state-for) (new-value object slot)
-  (declare (type computed-state new-value)
-           (type computed-object object)
-           (type computed-effective-slot-definition slot))
-  (setf (cs-object new-value) object)
-  (setf (cs-slot new-value) slot)
-  (aif (assoc slot (slot-computed-state-pairs-of object) :test 'eq)
-       (setf (cdr it) new-value)
-       (push (cons slot new-value) (slot-computed-state-pairs-of object)))
-  (values))
-
-(defun remove-computed-state-for (object slot)
-  (declare (type computed-object object)
-           (type computed-effective-slot-definition slot))
-  (setf (slot-computed-state-pairs-of object)
-        (delete slot (the list (slot-computed-state-pairs-of object)) :key 'car :test 'eq))
-  (values))

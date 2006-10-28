@@ -23,9 +23,18 @@
 (in-package :cl-user)
 
 (defpackage :computed-class-system
-  (:use :cl :asdf))
+  (:use :cl :asdf)
+  (:export
+   #:optimize-declaration))
 
 (in-package :computed-class-system)
+
+(defparameter *load-with-optimize-p* t)
+
+(defun optimize-declaration ()
+  (if *load-with-optimize-p*
+      '(optimize (speed 3) (debug 0) (safety 0))
+      (values)))
 
 (defsystem :computed-class
   :version "0.1"

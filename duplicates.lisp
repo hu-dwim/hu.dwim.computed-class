@@ -42,6 +42,14 @@
      (declare (ignore s c n))
      nil)))
 
+(defmacro aprog1 (ret &body body)
+  `(prog1-bind it ,ret ,@body))
+
+(defmacro prog1-bind (var ret &body body)
+  `(let ((,var ,ret))
+    ,@body
+    ,var))
+
 (defun concatenate-symbol (&rest args)
   "Args are processed as parts of the result symbol with an exception: when a package is encountered then it is stored as the target package at intern."
   (let* ((package nil)
