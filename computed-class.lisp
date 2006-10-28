@@ -156,8 +156,7 @@
           (when (has-recompute-state-contex)
             (in-recompute-state-contex context
               (push computed-state (rsc-used-computed-states context))))
-          (ensure-computed-state-is-valid computed-state)
-          (cs-value computed-state))
+          (computed-state-value computed-state))
         (call-next-method))))
 
 (defmethod (setf slot-value-using-class) (new-value
@@ -179,14 +178,28 @@
         (call-next-method))
       (let ((computed-state (computed-state-or-nil class object slot)))
         (if computed-state
-            (progn
-              (incf-pulse computed-state)
-              (setf (cs-depends-on computed-state) nil)
-              (setf (cs-computed-at-pulse computed-state) (current-pulse computed-state))
-              (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state))
-              (setf (cs-value computed-state) new-value))
+            (setf (computed-state-value computed-state) new-value)
             (call-next-method))))
   new-value)
+
+(defun computed-state-value (computed-state)
+  "Read the value, recalculate when needed."
+  (declare (type computed-state computed-state)
+           (inline)
+           #.(optimize-declaration))
+  (ensure-computed-state-is-valid computed-state)
+  (cs-value computed-state))
+
+(defun (setf computed-state-value) (new-value computed-state)
+  "Set the value, invalidate and recalculate as needed."
+  (declare (type computed-state computed-state)
+           (inline)
+           #.(optimize-declaration))
+  (let ((current-pulse (incf-pulse computed-state))) 
+    (setf (cs-depends-on computed-state) nil)
+    (setf (cs-computed-at-pulse computed-state) current-pulse)
+    (setf (cs-validated-at-pulse computed-state) current-pulse)
+    (setf (cs-value computed-state) new-value)))
 
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
                                       &key direct-superclasses direct-slots &allow-other-keys)
