@@ -67,8 +67,9 @@
   (declare (inline) (type computed-state computed-state))
   (cu-pulse (cs-universe computed-state)))
 
-(defconstant +invalid-pulse+ -1
-  "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
+(eval-always
+  (defconstant +invalid-pulse+ -1
+    "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation."))
 
 (defstruct (computed-state (:conc-name cs-) (:print-object print-computed-state))
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
@@ -213,14 +214,16 @@
     (setf (cs-validated-at-pulse computed-state) current-pulse)
     (setf (cs-value computed-state) new-value)))
 
+;; TODO this is broken on clisp, we don't even get here when there's already an error signalled
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
                                       &key direct-superclasses direct-slots &allow-other-keys)
+  "Support :computed #f slot argument for documentation purposes."
   (remf-keywords args :direct-superclasses :direct-slots)
   (let* ((computed-object (find-class 'computed-object))
          (direct-superclasses (if (member computed-object direct-superclasses :test 'eq)
                                   direct-superclasses
                                   (append direct-superclasses (list computed-object))))
-         (direct-slots (loop for direct-slot in direct-slots
+         (direct-slots (loop for direct-slot :in direct-slots
                              collect (progn
                                        (unless (getf direct-slot :computed)
                                          (remf-keywords direct-slot :computed))
@@ -329,13 +332,12 @@
     (in-recompute-state-contex context
       (loop for parent-context = context :then (rsc-parent-context parent-context)
             while parent-context
-            for parent-computed-state = (rsc-computed-state parent-context)
-            do (when (eq computed-state parent-computed-state)
-                 (error "Circularity detected among the computed slots/variables ~A"
-                        (loop for parent-context = context :then (rsc-parent-context parent-context)
-                              while parent-context
-                              for parent-computed-state = (rsc-computed-state parent-context)
-                              collect (cs-slot parent-computed-state))))))))
+            do (let ((parent-computed-state (rsc-computed-state parent-context)))
+                 (when (eq computed-state parent-computed-state)
+                   (error "Circularity detected among the computed slots/variables ~A"
+                          (loop for parent-context = context :then (rsc-parent-context parent-context)
+                                while parent-context
+                                collect (cs-slot (rsc-computed-state parent-context))))))))))
 
 (defun invalidate-computed-state (computed-state)
   (declare (type computed-state computed-state)
