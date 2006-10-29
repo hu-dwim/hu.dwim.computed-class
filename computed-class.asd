@@ -22,6 +22,9 @@
 
 (in-package :cl-user)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (asdf:operate 'asdf:load-op :closer-mop))
+
 (defpackage :computed-class-system
   (:use :cl :asdf :closer-mop)
   (:export
@@ -53,7 +56,7 @@
     (if *load-with-optimize-p*
         (pushnew :optimize *features*)
         (pushnew :debug *features*))
-    #+sbcl(progn
+    #+sbcl(when *load-with-optimize-p*
             (pushnew :generate-custom-reader *features*)
             (pushnew :generate-custom-writer *features*))
     (call-next-method)))

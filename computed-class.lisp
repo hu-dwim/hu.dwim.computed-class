@@ -86,9 +86,9 @@
   (depends-on
    nil
    :type list) ; of computed-state's
-  ;; TODO: not yet implemented
-  ;;(depending-on-me but only those that need to be notified)
+  ;;(depending-on-me but only those that need to be notified) TODO: not yet implemented
   #+debug(depending-on-me
+          ;; TODO keep a full list for debug purposes
           nil
           :type list) ; of computed-state's
   (compute-as
@@ -139,7 +139,8 @@
 #+(or :generate-custom-reader :generate-custom-writer)
 (defmethod finalize-inheritance :after ((class computed-class))
   (loop for direct-slot :in (class-direct-slots class)
-        for effective-slot = (find-slot class (slot-definition-name direct-slot)) do
+        for effective-slot = (find-slot class (slot-definition-name direct-slot))
+        when (typep effective-slot 'computed-effective-slot-definition) do
         (assert (and (<= (length (slot-definition-readers direct-slot)) 1)
                      (<= (length (slot-definition-writers direct-slot)) 1))
                 () "Computed class does not support multiple readers and/or writers.")
@@ -204,14 +205,14 @@
                 (push computed-state (rsc-used-computed-states context))))
             (computed-state-value computed-state))
           ,(if slot
-               `(standard-instance-access-form 'object ,(slot-definition-location slot))
-               `(standard-instance-access-form 'object '(slot-definition-location slot))))))
+               (standard-instance-access-form 'object (slot-definition-location slot))
+               (standard-instance-access-form 'object '(slot-definition-location slot))))))
 
   (defun setf-slot-value-using-class-body (&optional class slot)
     `(progn
-      #+debug(when ,(when (and class slot)
-                          `(slot-boundp-using-class ,class object ,slot)
-                          `(slot-boundp-using-class class object slot))
+      #+debug(when ,(if (and class slot)
+                        `(slot-boundp-using-class ,class object ,slot)
+                        `(slot-boundp-using-class class object slot))
                (let ((old-computed-state ,(if slot
                                               (standard-instance-access-form 'object (slot-definition-location slot))
                                               (standard-instance-access-form 'object '(slot-definition-location slot)))))
@@ -406,11 +407,14 @@
                              (typep slot 'slot-definition))
                         (slot-definition-name slot)
                         slot))
-         (attached-p #+debug(cs-attached-to-object-p computed-state)
-                     #-debug #\?))
+         (attached-p #+debug(if (cs-attached-to-object-p computed-state)
+                                "#t"
+                                "#f")
+                     #-debug "n/a"))
     (if (eq object 'not-an-object-slot-state)
         (format stream "<#~A :pulse ~A>" slot-name (cs-computed-at-pulse computed-state))
-        (format stream "~A/<#~A :pulse ~A :attached ~A>" object slot-name (cs-computed-at-pulse computed-state) attached-p))))
+        (format stream "~A/<#~A :pulse ~A :attached ~A>"
+                object slot-name (cs-computed-at-pulse computed-state) attached-p))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
