@@ -76,7 +76,9 @@
   :components
   ((:file "package")
    (:file "duplicates" :depends-on ("package"))
-   (:file "computed-class" :depends-on ("duplicates"))))
+   (:file "computed-class" :depends-on ("duplicates"))
+   (:file "clet" :depends-on ("computed-class"))
+   (:file "swank-integration" :depends-on ("computed-class"))))
 
 (defsystem :computed-class-test
   :description "Tests for the computed-class system."
