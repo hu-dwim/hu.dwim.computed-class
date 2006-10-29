@@ -50,11 +50,12 @@
 
 (defmethod perform :around ((op operation) (component computed-class-file))
   (let ((*features* *features*))
-    (unless *load-with-optimize-p*
-      (push :debug *features*))
+    (if *load-with-optimize-p*
+        (pushnew :optimize *features*)
+        (pushnew :debug *features*))
     #+sbcl(progn
-            (push :generate-custom-reader *features*)
-            (push :generate-custom-writer *features*))
+            (pushnew :generate-custom-reader *features*)
+            (pushnew :generate-custom-writer *features*))
     (call-next-method)))
 
 (defsystem :computed-class

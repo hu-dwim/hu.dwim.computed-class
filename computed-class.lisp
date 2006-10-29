@@ -22,7 +22,10 @@
 
 (in-package :computed-class)
 
-;(declaim (optimize (speed 3) (debug 0) (safety 0)))
+(declaim #+optimize(inline incf-pulse current-pulse computed-state-object-slot-p
+                           computed-state-value (setf computed-state-value) primitive-p
+                           invalidate-computed-state computed-state-or-nil
+                           standard-instance-access (setf standard-instance-access)))
 
 (enable-sharp-boolean-syntax)
 
@@ -144,7 +147,7 @@
               (writer (first (slot-definition-writers direct-slot))))
           #+generate-custom-reader
           (when reader
-            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own reader later (?!) than this
+            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own reader after (?!) this
             (setf (slot-definition-readers direct-slot) nil)
             (let ((reader-gf (ensure-generic-function reader))) 
               (ensure-method reader-gf
@@ -153,7 +156,7 @@
                              :specializers (list class))))
           #+generate-custom-writer
           (when writer
-            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own writer later (?!) than this
+            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own writer after (?!) this
             (setf (slot-definition-writers direct-slot) nil)
             (ensure-generic-function writer)
             (let ((writer-gf (ensure-generic-function writer))) 
