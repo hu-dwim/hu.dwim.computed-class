@@ -502,7 +502,7 @@
 
 (define-setf-expander computed-state-in-variable-value ())
 
-(defmacro computed-let (vars &body body)
+(defmacro clet (vars &body body)
   "A let* with extra semantics to handle computed variables. For now see the code and the test file for details.
    Available bindings in the body:
      - (computed-state-for NAME) A macro to access the place itself, so you can setf closed-over computed variables to new (compute-as ...) forms."

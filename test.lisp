@@ -131,6 +131,17 @@
     ;; even slot-value does not call svuc?!
     (is (= 3 (slot-b-of object)))))
 
+;;;;;;;;;;;;;;;;;;
+;;; clet tests
+
+(test computed-class/clet/1
+  (clet ((a (compute-as 1))
+         (b (compute-as (1+ a)))
+         (c (compute-as (+ a b))))
+    (is (= 3 c))
+    (setf a 2)
+    (is (= 5 c))))
+
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test
                                 :slot-a (compute-as 1)

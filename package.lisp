@@ -34,7 +34,7 @@
            #:self
            #:invalidate-computed-slot
            #:make-slot-uncomputed
-           #:computed-let
+           #:clet
            #:computed-state-for
            #:recompute-slot))
 
