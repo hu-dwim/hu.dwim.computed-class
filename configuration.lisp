@@ -1,0 +1,63 @@
+;; -*- mode: Lisp; Syntax: Common-Lisp; Package: computed-class; -*-
+;;;
+;;; Copyright (c) 2006 by the authors.
+;;;
+;;; Permission is hereby granted, free of charge, to any person obtaining a copy 
+;;; of this software and associated documentation files (the "Software"), to deal 
+;;; in the Software without restriction, including without limitation the rights 
+;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+;;; copies of the Software, and to permit persons to whom the Software is furnished 
+;;; to do so, subject to the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be included in 
+;;; all copies or substantial portions of the Software.
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
+;;; IN THE SOFTWARE.
+
+(in-package :computed-class)
+
+(enable-sharp-boolean-syntax)
+
+;;; These definitions need to be available by the time we are reading the other files, therefore
+;;; they are in a standalone file.
+
+;; TODO: this should be in closer-mop
+(progn
+  (defclass test ()
+    (test-slot))
+
+  (defparameter +unbound-slot-value+
+    (let ((test (make-instance 'test)))
+      (standard-instance-access test
+                                (slot-definition-location
+                                 (find 'test-slot (class-slots (find-class 'test))
+                                       :key #'slot-definition-name))))
+    "We use this symbol for unbound slot marking, so a quick eq is enough instead of a slot-boundp-using-class call.")
+
+  (setf (find-class 'test) nil))
+
+(defun standard-instance-access-form (&optional slot)
+  `(standard-instance-access object ,(if slot
+                                         (slot-definition-location slot)
+                                         '(slot-definition-location slot))))
+
+(defun setf-standard-instance-access-form (&optional slot (new-value 'new-value))
+  ;; the default
+  `(setf (standard-instance-access object ,(if slot
+                                               (slot-definition-location slot)
+                                               '(slot-definition-location slot)))
+    ,new-value)
+  
+  ;; implementation specific overrides
+  #+sbcl `(setf (sb-pcl::clos-slots-ref (sb-pcl::std-instance-slots object)
+                 ,(if slot
+                      (slot-definition-location slot)
+                      '(slot-definition-location slot)))
+           ,new-value))
+

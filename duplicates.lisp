@@ -151,10 +151,10 @@
                   (error ,',(strcat "There's no " (string-downcase name))))
                 ,@forms))))
       ;; generate the current-... function
+      (declaim (inline ,extractor-name))
       (defun ,extractor-name ()
-        (declare (inline))
         (symbol-value ',special-var-name))
       ;; generate the has-... function
+      (declaim (inline ,has-checker-name))
       (defun ,has-checker-name ()
-        (declare (inline))
         (boundp ',special-var-name)))))

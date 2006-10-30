@@ -28,22 +28,21 @@
 
 ;; when inspecting a computed slot, display the computed-state
 #+#.(cl:when (cl:find-package "SWANK") '(:and))
-(defmethod inspect-for-emacs ((o computed-class::computed-object) inspector)
+(defmethod inspect-for-emacs ((computed-class::object computed-class::computed-object) inspector)
   (declare (ignore inspector))
-  (let ((c (class-of o)))
+  (let ((c (class-of computed-class::object)))
     (values "An object."
             `("Class: " (:value ,c) (:newline)
               "Slots:" (:newline)
-              ,@(loop for slotd in (swank-mop:class-slots c)
-                      for name = (swank-mop:slot-definition-name slotd)
-                      collect `(:value ,slotd ,(string name))
+              ,@(loop for computed-class::slot in (swank-mop:class-slots c)
+                      for name = (swank-mop:slot-definition-name computed-class::slot)
+                      collect `(:value ,computed-class::slot ,(string name))
                       collect " = "
-                      collect (if (swank-mop:slot-boundp-using-class c o slotd)
-                                  `(:value ,(if (typep slotd 'computed-class::computed-effective-slot-definition)
-                                                #.(computed-class::standard-instance-access-form
-                                                   'o '(closer-mop:slot-definition-location slotd))
+                      collect (if (swank-mop:slot-boundp-using-class c computed-class::object computed-class::slot)
+                                  `(:value ,(if (typep computed-class::slot 'computed-class::computed-effective-slot-definition)
+                                                #.(computed-class::standard-instance-access-form)
                                                 (swank-mop:slot-value-using-class 
-                                                 c o slotd)))
+                                                 c computed-class::object computed-class::slot)))
                                   "#<unbound>")
                       collect '(:newline))))))
 

@@ -28,9 +28,7 @@
 (defpackage :computed-class-system
   (:use :cl :asdf :closer-mop)
   (:export
-   #:optimize-declaration
-   #:standard-instance-access-form
-   #:setf-standard-instance-access-form))
+   #:optimize-declaration))
 
 (in-package :computed-class-system)
 
@@ -39,17 +37,10 @@
 (defun optimize-declaration ()
   (if *load-with-optimize-p*
       '(optimize (speed 3) (debug 0) (safety 0))
-      (values)))
+      '(optimize (debug 3) (safety 3))))
 
 (defclass computed-class-file (cl-source-file)
   ())
-
-(defun standard-instance-access-form (object slot-location)
-  `(standard-instance-access ,object ,slot-location))
-
-(defun setf-standard-instance-access-form (new-value object slot-location)
-  `(setf (standard-instance-access ,object ,slot-location) ,new-value)
-  #+sbcl `(setf (sb-pcl::clos-slots-ref (sb-pcl::std-instance-slots ,object) ,slot-location) ,new-value))
 
 (defmethod perform :around ((op operation) (component computed-class-file))
   (let ((*features* *features*))
@@ -76,7 +67,8 @@
   :components
   ((:file "package")
    (:file "duplicates" :depends-on ("package"))
-   (:file "computed-class" :depends-on ("duplicates"))
+   (:file "configuration" :depends-on ("duplicates"))
+   (:file "computed-class" :depends-on ("configuration"))
    (:file "clet" :depends-on ("computed-class"))
    (:file "swank-integration" :depends-on ("computed-class"))))
 
