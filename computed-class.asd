@@ -47,9 +47,6 @@
     (if *load-with-debug-p*
         (pushnew :debug *features*)
         (pushnew :optimize *features*))
-    #+sbcl(progn
-            (pushnew :generate-custom-readers *features*)
-            (pushnew :generate-custom-writers *features*))
     (call-next-method)))
 
 (defsystem :computed-class

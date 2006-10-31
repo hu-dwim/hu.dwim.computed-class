@@ -73,6 +73,20 @@
       :initform (compute-as 1)))
     (:metaclass computed-class)))
 
+(test computed-class/defclass-with-accessors/1
+  (let ((class
+         (defclass computed-5 ()
+           ((a)
+            (b :computed #f)
+            (c :computed #t))
+           (:metaclass computed-class*))))
+    (flet ((computed-slot-p (slot-name)
+             (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
+      (finalize-inheritance class)
+      (is (not (computed-slot-p 'a)))
+      (is (not (computed-slot-p 'b)))
+      (is (computed-slot-p 'c)))))
+
 (test computed-class/subclassing/1
   (defclass super ()
     ((a
@@ -81,15 +95,15 @@
      (b
       :accessor b-of
       :initform (compute-as (1+ (a-of self)))))
-    (:metaclass computed-class))
+    (:metaclass computed-class*))
 
   (defclass level0-1 (super)
     ((x))
-    (:metaclass computed-class))
+    (:metaclass computed-class*))
   
   (defclass level0-2 (super)
     ((y))
-    (:metaclass computed-class))
+    (:metaclass computed-class*))
 
   (defclass level1-1 (level0-1)
     ((z)))
@@ -101,7 +115,7 @@
      (a
       :accessor a-of
       :initform (compute-as 1)))
-    (:metaclass computed-class))
+    (:metaclass computed-class*))
   
   (let ((sub (make-instance 'sub)))
     (is (= (a-of sub) 1))
@@ -119,7 +133,7 @@
     :accessor slot-b-of
     :initarg :slot-b
     :computed t))
-  (:metaclass computed-class))
+  (:metaclass computed-class*))
 
 (test computed-class/boundp/1
   (let ((object (make-instance 'computed-test)))
@@ -161,14 +175,14 @@
   (defclass sbcl-class-cache-computed-test ()
     ((slot-a :accessor slot-a-of :initarg :slot-a)
      (slot-b :accessor slot-b-of :initarg :slot-b))
-    (:metaclass computed-class))
+    (:metaclass computed-class*))
   (let ((object (make-instance 'sbcl-class-cache-computed-test :slot-a (compute-as 1) :slot-b 1)))
     (slot-a-of object)
     (slot-b-of object))
   (defclass sbcl-class-cache-computed-test ()
     ((slot-a :accessor slot-a-of :initarg :slot-a :computed #t)
      (slot-b :accessor slot-b-of :initarg :slot-b :computed #t))
-    (:metaclass computed-class))
+    (:metaclass computed-class*))
   (let ((object (make-instance 'sbcl-class-cache-computed-test
                                :slot-a (compute-as 1)
                                :slot-b (compute-as (1+ (slot-a-of self))))))

@@ -112,16 +112,31 @@
   ()
   (:documentation "A computed class might have slots which are computed based on other computed slots in other computed class instances. A slot of a computed class is either a standard slot or a computed slot and only class redefinition may change this. Slots which are computed will be tracked, invalidated and/or recomputed whenever a computed slot value changes which were used last time when the slot was computed. The used computed slots are collected runtime and per instance. Moreover different instances might compute the same slots in different ways."))
 
+(defclass computed-class* (computed-class)
+  ()
+  (:documentation "Just like computed-class but the classes having this metaclass will have custom accessors. This slows down loading but speeds up the accessors quite a bit."))
+
+(defmethod validate-superclass ((class standard-class) (superclass computed-class))
+  t)
+(defmethod validate-superclass ((class computed-class) (superclass standard-class))
+  t)
+
+(defclass computed-object ()
+  ()
+  (:documentation "This is the base class for all computed classes. The class need not be listed in the direct supers when defining a computed class because the metaclass makes sure it's among them."))
+
 (defclass computed-slot-definition (standard-slot-definition)
   ((compute-as
-    :type computed-state
-    :accessor compute-as-of
-    :initarg :compute-as)
+     :type computed-state
+     :accessor compute-as-of
+     :initarg :compute-as)
    (computed-readers
+    :initform nil
     :type list
     :accessor computed-readers-of
     :initarg :computed-readers)
    (computed-writers
+    :initform nil
     :type list
     :accessor computed-writers-of
     :initarg :computed-writers)))
@@ -129,30 +144,34 @@
 (defclass computed-direct-slot-definition (computed-slot-definition standard-direct-slot-definition)
   ())
 
+(defclass computed-direct-slot-definition-with-custom-accessors (computed-direct-slot-definition)
+  ()
+  (:documentation "This direct slot definition converts the :readers and :writers initargs to :computed-readers and :computed-writers effectively disabling the generation of default accessors."))
+
 (defclass computed-effective-slot-definition (computed-slot-definition standard-effective-slot-definition)
   ())
 
-(defclass computed-object ()
-  ()
-  (:documentation "This is the base class for all computed classes. The class need not be listed in the direct classes when defining a computed class because the meta class takes care adding it."))
-
-(defmethod validate-superclass ((class standard-class) (superclass computed-class))
-  t)
-(defmethod validate-superclass ((class computed-class) (superclass standard-class))
-  t)
-
-(defmethod initialize-instance :around ((slot computed-direct-slot-definition) &rest args &key readers writers &allow-other-keys)
+(defmethod initialize-instance :around ((slot computed-direct-slot-definition-with-custom-accessors)
+                                        &rest args &key readers writers &allow-other-keys)
   (remf-keywords args :readers :writers)
-  ;; convert :readers to :computed-readers and the same with :writer, so the underlying MOP won't generate its own accessors
   (apply #'call-next-method slot :computed-readers readers :computed-writers writers args))
 
+(defun compute-as-form-p (form)
+  (and (consp form)
+       (symbolp (first form))
+       (get (first form) 'computed-as-macro-p)))
+
 (defmethod direct-slot-definition-class ((class computed-class) &key initform (computed #f) &allow-other-keys)
-  (if (and (not computed)
-           (or (not (consp initform))
-               (not (symbolp (first initform)))
-               (not (get (first initform) 'computed-as-macro-p))))
-      (call-next-method)
-      (find-class 'computed-direct-slot-definition)))
+  (if (or computed
+          (compute-as-form-p initform))
+      (find-class 'computed-direct-slot-definition)
+      (call-next-method)))
+
+(defmethod direct-slot-definition-class ((class computed-class*) &key initform (computed #f) &allow-other-keys)
+  (if (or computed
+          (compute-as-form-p initform))
+      (find-class 'computed-direct-slot-definition-with-custom-accessors)
+      (call-next-method)))
 
 (defmethod effective-slot-definition-class ((class computed-class) &key &allow-other-keys)
   (declare (special %computed-effective-slot-definition%))
@@ -168,8 +187,8 @@
     (declare (special %computed-effective-slot-definition%))
     (aprog1
         (call-next-method)
-      ;; We copy the computed-readers and computed-writers slots to the effective-slot, so we can
-      ;; access it later when generating custom accessors.
+      ;; We collect and copy the readers and writers to the effective-slot, so we can access it
+      ;; later when generating custom accessors.
       (when (typep it 'computed-effective-slot-definition)
         (setf (computed-readers-of it)
               (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
@@ -271,7 +290,7 @@
     :initarg :effective-slot
     :accessor effective-slot-of
     :documentation "This method was generatated or validated using this effective slot object."))
-  (:documentation "computed-class generates method with this class."))
+  (:documentation "computed-class generates accessors with this class."))
 
 (defclass computed-reader-method (computed-accessor-method standard-reader-method)
   ())
@@ -342,15 +361,12 @@
   (loop for effective-slot :in (class-slots class)
         when (typep effective-slot 'computed-effective-slot-definition) do
         (log.dribble "Visiting effective-slot ~A of class ~A to generate accessors" effective-slot class)
-        #+generate-custom-readers
         (dolist (reader (computed-readers-of effective-slot))
           (ensure-accessor-for class reader effective-slot :reader))
-        #+generate-custom-writers
         (dolist (writer (computed-writers-of effective-slot))
           (ensure-accessor-for class writer effective-slot :writer))))
 
-#+(or generate-custom-readers generate-custom-writers)
-(defmethod finalize-inheritance :after ((class computed-class))
+(defmethod finalize-inheritance :after ((class computed-class*))
   (ensure-accessors-for class))
 
 ;; TODO this is not standard compliant: "Portable programs must not define methods on

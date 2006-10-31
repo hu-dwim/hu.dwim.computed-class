@@ -30,6 +30,7 @@
   (:use :cl :closer-mop :arnesi :computed-class-system)
 
   (:export #:computed-class
+           #:computed-class*
            #:define-computed-universe
            #:self
            #:invalidate-computed-slot
