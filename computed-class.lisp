@@ -103,6 +103,8 @@
   :create-struct #t
   :struct-options ((:conc-name rsc-)))
 
+
+
 ;;;;;;;;;;;;;;;;;;;;
 ;;; CLOS MOP related
 
@@ -114,7 +116,15 @@
   ((compute-as
     :type computed-state
     :accessor compute-as-of
-    :initarg :compute-as)))
+    :initarg :compute-as)
+   (computed-readers
+    :type list
+    :accessor computed-readers-of
+    :initarg :computed-readers)
+   (computed-writers
+    :type list
+    :accessor computed-writers-of
+    :initarg :computed-writers)))
 
 (defclass computed-direct-slot-definition (computed-slot-definition standard-direct-slot-definition)
   ())
@@ -128,42 +138,13 @@
 
 (defmethod validate-superclass ((class standard-class) (superclass computed-class))
   t)
-
 (defmethod validate-superclass ((class computed-class) (superclass standard-class))
   t)
 
-#+(or :generate-custom-reader :generate-custom-writer)
-(defmethod finalize-inheritance :after ((class computed-class))
-  (loop for direct-slot :in (class-direct-slots class)
-        for effective-slot = (find-slot class (slot-definition-name direct-slot))
-        when (typep effective-slot 'computed-effective-slot-definition) do
-        (assert (and (<= (length (slot-definition-readers direct-slot)) 1)
-                     (<= (length (slot-definition-writers direct-slot)) 1))
-                () "Computed class does not support multiple readers and/or writers.")
-        (let ((reader (first (slot-definition-readers direct-slot)))
-              (writer (first (slot-definition-writers direct-slot))))
-          #+generate-custom-reader
-          (when reader
-            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own reader after (?!) this
-            (setf (slot-definition-readers direct-slot) nil)
-            (let ((reader-gf (ensure-generic-function reader))) 
-              (ensure-method reader-gf
-                             `(lambda (object)
-                               ;; TODO this dumps a ton of compiler notes when defining classes
-                               ;;(declare #.(optimize-declaration))
-                               ,(slot-value-using-class-body effective-slot))
-                             :specializers (list class))))
-          #+generate-custom-writer
-          (when writer
-            ;; FIXME: this setf is a KLUDGE to stop sbcl from generating it's own writer after (?!) this
-            (setf (slot-definition-writers direct-slot) nil)
-            (ensure-generic-function writer)
-            (let ((writer-gf (ensure-generic-function writer))) 
-              (ensure-method writer-gf
-                             `(lambda (new-value object)
-                               ;;(declare #.(optimize-declaration))
-                               ,(setf-slot-value-using-class-body effective-slot))
-                             :specializers (list (find-class 't) class)))))))
+(defmethod initialize-instance :around ((slot computed-direct-slot-definition) &rest args &key readers writers &allow-other-keys)
+  (remf-keywords args :readers :writers)
+  ;; convert :readers to :computed-readers and the same with :writer, so the underlying MOP won't generate its own accessors
+  (apply #'call-next-method slot :computed-readers readers :computed-writers writers args))
 
 (defmethod direct-slot-definition-class ((class computed-class) &key initform (computed #f) &allow-other-keys)
   (if (and (not computed)
@@ -185,8 +166,23 @@
                                                          (typep direct-slot-definition 'computed-direct-slot-definition))
                                                        direct-slot-definitions)))
     (declare (special %computed-effective-slot-definition%))
-    (call-next-method)))
-
+    (aprog1
+        (call-next-method)
+      ;; We copy the computed-readers and computed-writers slots to the effective-slot, so we can
+      ;; access it later when generating custom accessors.
+      (when (typep it 'computed-effective-slot-definition)
+        (setf (computed-readers-of it)
+              (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
+                                       appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
+                                                     (computed-readers-of direct-slot-definition)
+                                                     (slot-definition-readers direct-slot-definition)))
+                                 :test #'equal))
+        (setf (computed-writers-of it)
+              (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
+                                       appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
+                                                     (computed-writers-of direct-slot-definition)
+                                                     (slot-definition-writers direct-slot-definition)))
+                                 :test #'equal))))))
 (eval-always
   ;; These are called at read-time and the purpose of this is to be able to share the code between
   ;; the accessors and the real svuc (IOW, to avoid fatal copy-paste errors) and to be able to
@@ -270,7 +266,95 @@
     (setf (cs-validated-at-pulse computed-state) current-pulse)
     (setf (cs-value computed-state) new-value)))
 
-;; TODO this is broken on clisp, we don't even get here when there's already an error signalled
+(defclass computed-accessor-method (standard-accessor-method)
+  ((effective-slot
+    :initarg :effective-slot
+    :accessor effective-slot-of
+    :documentation "This method was generatated or validated using this effective slot object."))
+  (:documentation "computed-class generates method with this class."))
+
+(defclass computed-reader-method (computed-accessor-method standard-reader-method)
+  ())
+
+(defclass computed-writer-method (computed-accessor-method standard-writer-method)
+  ())
+
+#+debug
+(progn
+  (defparameter *kept-accessors* 0)
+  (defparameter *new-accessors* 0))
+
+(defun ensure-accessor-for (class accessor-name effective-slot type)
+  (let* ((gf (ensure-generic-function accessor-name :lambda-list (ecase type
+                                                                   (:reader '(object))
+                                                                   (:writer '(new-value object)))))
+         (specializers (ecase type
+                         (:reader (list class))
+                         (:writer (list (find-class 't) class))))
+         (current-method (find-method gf '() specializers #f)))
+    (if (and current-method
+             (typep current-method 'computed-accessor-method)
+             (= (slot-definition-location (effective-slot-of current-method))
+                (slot-definition-location effective-slot)))
+        (progn
+          (log.dribble "Keeping compatible ~A for class ~A, slot ~S, slot-location ~A"
+                       (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
+                       (slot-definition-location effective-slot))
+          #+debug(incf *kept-accessors*)
+          (setf (effective-slot-of current-method) effective-slot))
+        (progn
+          (log.debug "Ensuring new ~A for class ~A, slot ~S, effective-slot ~A, slot-location ~A"
+                     (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
+                     effective-slot (slot-definition-location effective-slot))          
+          #+debug(incf *new-accessors*)
+          (setf (effective-slot-of
+                 (ensure-method gf
+                                (ecase type
+                                  (:reader
+                                   `(lambda (object)
+                                     (declare (optimize (speed 1)))
+                                     (log.dribble "Entered reader for object ~A, generated for class ~A, slot ~A, slot-location ~A"
+                                      object ,class ,effective-slot ,(slot-definition-location effective-slot))
+                                     (if (eq (class-of object) ,class)
+                                         (progn
+                                           ,(slot-value-using-class-body effective-slot))
+                                         (progn
+                                           (log.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
+                                                        object (slot-definition-name ,effective-slot))
+                                           (slot-value object ',(slot-definition-name effective-slot))))))
+                                  (:writer
+                                   `(lambda (new-value object)
+                                     (declare (optimize (speed 1)))
+                                     (log.dribble "Entered writer for object ~A, generated for class ~A, slot ~A, slot-location ~A"
+                                      object ,class ,effective-slot ,(slot-definition-location effective-slot))
+                                     (if (eq (class-of object) ,class)
+                                         (progn
+                                           ,(setf-slot-value-using-class-body effective-slot))
+                                         (progn
+                                           (log.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
+                                                        object  (slot-definition-name ,effective-slot))
+                                           (setf (slot-value object ',(slot-definition-name effective-slot)) new-value))))))
+                                :specializers specializers
+                                :method-class (find-class 'computed-reader-method)))
+                effective-slot)))))
+
+(defun ensure-accessors-for (class)
+  (loop for effective-slot :in (class-slots class)
+        when (typep effective-slot 'computed-effective-slot-definition) do
+        (log.dribble "Visiting effective-slot ~A of class ~A to generate accessors" effective-slot class)
+        #+generate-custom-readers
+        (dolist (reader (computed-readers-of effective-slot))
+          (ensure-accessor-for class reader effective-slot :reader))
+        #+generate-custom-writers
+        (dolist (writer (computed-writers-of effective-slot))
+          (ensure-accessor-for class writer effective-slot :writer))))
+
+#+(or generate-custom-readers generate-custom-writers)
+(defmethod finalize-inheritance :after ((class computed-class))
+  (ensure-accessors-for class))
+
+;; TODO this is not standard compliant: "Portable programs must not define methods on
+;; shared-initialize." (for classes)
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
                                       &key direct-superclasses direct-slots &allow-other-keys)
   "Support :computed #f slot argument for documentation purposes."
@@ -279,6 +363,7 @@
          (direct-superclasses (if (member computed-object direct-superclasses :test 'eq)
                                   direct-superclasses
                                   (append direct-superclasses (list computed-object))))
+         ;; TODO this has no effect on clisp: we don't even get here when there's already an error signalled for :computed #f
          (direct-slots (loop for direct-slot :in direct-slots
                              collect (progn
                                        (unless (getf direct-slot :computed)
@@ -290,20 +375,11 @@
 (defmethod shared-initialize :before ((object computed-slot-definition) slot-names &key computed &allow-other-keys)
   (declare (ignore object slot-names computed)))
 
+
+
+
 ;;;;;;;;;;;;;;;;;;
-;;; Helper methods
-
-(defun primitive-p (object)
-  (or (numberp object)
-      (stringp object)
-      (symbolp object)
-      (characterp object)))
-
-(defun find-slot (class slot-name)
-  (declare (type standard-class class)
-           (type symbol slot-name)
-           #.(optimize-declaration))
-  (find slot-name (the list (class-slots class)) :key #'slot-definition-name))
+;;; Implementation
 
 (defun ensure-computed-state-is-valid (computed-state)
   (declare (type computed-state computed-state)
@@ -415,6 +491,9 @@
         (format stream "~A/<#~A :pulse ~A :attached ~A>"
                 object slot-name (cs-computed-at-pulse computed-state) attached-p))))
 
+
+
+
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
 
@@ -480,8 +559,23 @@
                  (recompute-computed-state computed-state)
                  (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Managing computed slot state 
+
+
+
+;;;;;;;;;;;;;;;;;;
+;;; Helper methods
+
+(defun primitive-p (object)
+  (or (numberp object)
+      (stringp object)
+      (symbolp object)
+      (characterp object)))
+
+(defun find-slot (class slot-name)
+  (declare (type standard-class class)
+           (type symbol slot-name)
+           #.(optimize-declaration))
+  (find slot-name (the list (class-slots class)) :key #'slot-definition-name :test #'eq))
 
 (defun computed-state-or-nil (object slot)
   (declare (type (or symbol computed-object) object)
@@ -492,3 +586,5 @@
       (when (and (not (eq result '#.+unbound-slot-value+))
                  (computed-state-p result))
         result))))
+
+

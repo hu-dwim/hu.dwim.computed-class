@@ -32,24 +32,24 @@
 
 (in-package :computed-class-system)
 
-(defparameter *load-with-optimize-p* t)
+(defparameter *load-with-debug-p* nil)
 
 (defun optimize-declaration ()
-  (if *load-with-optimize-p*
-      '(optimize (speed 3) (debug 0) (safety 0))
-      '(optimize (debug 3) (safety 3))))
+  (if *load-with-debug-p*
+      '(optimize (debug 3) (safety 3))
+      '(optimize (speed 3) (debug 0) (safety 0))))
 
 (defclass computed-class-file (cl-source-file)
   ())
 
 (defmethod perform :around ((op operation) (component computed-class-file))
   (let ((*features* *features*))
-    (if *load-with-optimize-p*
-        (pushnew :optimize *features*)
-        (pushnew :debug *features*))
-    #+sbcl(when *load-with-optimize-p*
-            (pushnew :generate-custom-reader *features*)
-            (pushnew :generate-custom-writer *features*))
+    (if *load-with-debug-p*
+        (pushnew :debug *features*)
+        (pushnew :optimize *features*))
+    #+sbcl(progn
+            (pushnew :generate-custom-readers *features*)
+            (pushnew :generate-custom-writers *features*))
     (call-next-method)))
 
 (defsystem :computed-class

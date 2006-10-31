@@ -25,7 +25,8 @@
 (eval-always
   (import (let ((*package* (find-package :computed-class)))
             (read-from-string "(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse
-                                slot-value-using-class-body setf-slot-value-using-class-body)"))))
+                                slot-value-using-class-body setf-slot-value-using-class-body
+                                log.dribble log.debug log.info log.warn log.error)"))))
 
 (computed-class::enable-sharp-boolean-syntax)
 
@@ -69,8 +70,42 @@
     ((slot-a
       :initform (compute-as 0))
      (slot-b
-      :initform (compute-as (1+ (slot-a-of self)))))
+      :initform (compute-as 1)))
     (:metaclass computed-class)))
+
+(test computed-class/subclassing/1
+  (defclass super ()
+    ((a
+      :accessor a-of
+      :initform (compute-as 42))
+     (b
+      :accessor b-of
+      :initform (compute-as (1+ (a-of self)))))
+    (:metaclass computed-class))
+
+  (defclass level0-1 (super)
+    ((x))
+    (:metaclass computed-class))
+  
+  (defclass level0-2 (super)
+    ((y))
+    (:metaclass computed-class))
+
+  (defclass level1-1 (level0-1)
+    ((z)))
+
+  (defclass sub (level1-1 level0-2)
+    ((b
+      :accessor b-of
+      :initform (compute-as 0))
+     (a
+      :accessor a-of
+      :initform (compute-as 1)))
+    (:metaclass computed-class))
+  
+  (let ((sub (make-instance 'sub)))
+    (is (= (a-of sub) 1))
+    (is (= (b-of sub) 0))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;; Instance tests

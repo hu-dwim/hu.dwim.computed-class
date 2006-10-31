@@ -45,5 +45,5 @@
 
 (deflogger log ()
   :level +warn+
-  :compile-time-level #+optimize +warn+ #-optimize +debug+
+  :compile-time-level #+optimize +warn+ #-optimize +dribble+
   :appender (make-instance 'brief-stream-log-appender :stream *debug-io*))
