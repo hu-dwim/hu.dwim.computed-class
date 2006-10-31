@@ -28,21 +28,8 @@
 
 ;; when inspecting a computed slot, display the computed-state
 #+#.(cl:when (cl:find-package "SWANK") '(:and))
-(defmethod inspect-for-emacs ((computed-class::object computed-class::computed-object) inspector)
-  (declare (ignore inspector))
-  (let ((c (class-of computed-class::object)))
-    (values "An object."
-            `("Class: " (:value ,c) (:newline)
-              "Slots:" (:newline)
-              ,@(loop for computed-class::slot in (swank-mop:class-slots c)
-                      for name = (swank-mop:slot-definition-name computed-class::slot)
-                      collect `(:value ,computed-class::slot ,(string name))
-                      collect " = "
-                      collect (if (swank-mop:slot-boundp-using-class c computed-class::object computed-class::slot)
-                                  `(:value ,(if (typep computed-class::slot 'computed-class::computed-effective-slot-definition)
-                                                #.(computed-class::standard-instance-access-form)
-                                                (swank-mop:slot-value-using-class 
-                                                 c computed-class::object computed-class::slot)))
-                                  "#<unbound>")
-                      collect '(:newline))))))
+(defmethod slot-value-using-class-for-inspector ((computed-class::class computed-class::computed-class)
+                                                 (computed-class::object computed-class::computed-object)
+                                                 (computed-class::slot computed-class::computed-effective-slot-definition))
+  #.(computed-class::standard-instance-access-form))
 
