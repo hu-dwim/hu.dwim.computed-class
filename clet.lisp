@@ -22,12 +22,12 @@
 
 (in-package :computed-class)
 
-(enable-sharp-boolean-syntax)
+#.(file-header)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Standalone variables
 
-;; limitations:
+;; current limitations:
 ;; - computed-let can only handle variables initialized with (compute-as ...) forms (can be fixed)
 ;; - (computed-state-for NAME) works only on one level (probably not trivial to overcome this)
 ;; - warnings/notes due to unused functions and optimization

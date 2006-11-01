@@ -20,10 +20,6 @@
 ;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 ;;; IN THE SOFTWARE.
 
-(in-package :computed-class)
-
-(enable-sharp-boolean-syntax)
-
 (in-package :swank)
 
 ;; when inspecting a computed slot, display the computed-state

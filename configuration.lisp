@@ -42,6 +42,20 @@
 
   (setf (find-class 'test) nil))
 
+(defun inline-declaration ()
+  (if *load-with-debug-p*
+      (values)
+      '(inline
+        incf-pulse current-pulse computed-state-object-slot-p
+        computed-state-value (setf computed-state-value) primitive-p
+        invalidate-computed-state computed-state-or-nil find-slot
+        standard-instance-access (setf standard-instance-access))))
+
+(defun file-header ()
+  `(progn
+    (declaim ,(inline-declaration))
+    (enable-sharp-boolean-syntax)))
+
 (defun standard-instance-access-form (&optional slot)
   `(standard-instance-access object ,(if slot
                                          (slot-definition-location slot)

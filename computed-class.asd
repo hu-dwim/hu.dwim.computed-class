@@ -28,7 +28,8 @@
 (defpackage :computed-class-system
   (:use :cl :asdf :closer-mop)
   (:export
-   #:optimize-declaration))
+   #:optimize-declaration
+   #:*load-with-debug-p*))
 
 (in-package :computed-class-system)
 
@@ -66,9 +67,11 @@
   ((:file "package")
    (:file "duplicates" :depends-on ("package"))
    (:file "configuration" :depends-on ("duplicates"))
-   (:file "computed-class" :depends-on ("configuration"))
-   (:file "clet" :depends-on ("computed-class"))
-   (:file "swank-integration" :depends-on ("computed-class"))))
+   (:file "engine" :depends-on ("configuration"))
+   (:file "mop" :depends-on ("engine" "configuration"))
+   (:file "api" :depends-on ("engine" "mop"))
+   (:file "clet" :depends-on ("engine"))
+   (:file "swank-integration" :depends-on ("engine"))))
 
 (defsystem :computed-class-test
   :description "Tests for the computed-class system."
