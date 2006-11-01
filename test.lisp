@@ -55,14 +55,14 @@
   (let ((class
          (defclass computed-3 ()
            ((a)
-            (b :computed #f)
+            #+sbcl(b :computed #f)
             (c :computed #t))
            (:metaclass computed-class))))
     (flet ((computed-slot-p (slot-name)
              (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
       (finalize-inheritance class)
       (is (not (computed-slot-p 'a)))
-      (is (not (computed-slot-p 'b)))
+      #+sbcl(is (not (computed-slot-p 'b)))
       (is (computed-slot-p 'c)))))
 
 (test computed-class/defclass/4
@@ -77,14 +77,12 @@
   (let ((class
          (defclass computed-5 ()
            ((a)
-            (b :computed #f)
             (c :computed #t))
            (:metaclass computed-class*))))
     (flet ((computed-slot-p (slot-name)
              (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
       (finalize-inheritance class)
       (is (not (computed-slot-p 'a)))
-      (is (not (computed-slot-p 'b)))
       (is (computed-slot-p 'c)))))
 
 (test computed-class/subclassing/1

@@ -141,6 +141,10 @@
     :accessor computed-writers-of
     :initarg :computed-writers)))
 
+;; this definition is here to allow a :computed argument for the slot definition
+(defmethod initialize-instance :before ((computed-slot-definition computed-slot-definition) &key computed &allow-other-keys)
+  (declare (ignore object slot-names computed)))
+
 (defclass computed-direct-slot-definition (computed-slot-definition standard-direct-slot-definition)
   ())
 
@@ -326,36 +330,37 @@
                      (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
                      effective-slot (slot-definition-location effective-slot))          
           #+debug(incf *new-accessors*)
-          (setf (effective-slot-of
-                 (ensure-method gf
-                                (ecase type
-                                  (:reader
-                                   `(lambda (object)
-                                     (declare (optimize (speed 1)))
-                                     (log.dribble "Entered reader for object ~A, generated for class ~A, slot ~A, slot-location ~A"
-                                      object ,class ,effective-slot ,(slot-definition-location effective-slot))
-                                     (if (eq (class-of object) ,class)
-                                         (progn
-                                           ,(slot-value-using-class-body effective-slot))
-                                         (progn
-                                           (log.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
-                                                        object (slot-definition-name ,effective-slot))
-                                           (slot-value object ',(slot-definition-name effective-slot))))))
-                                  (:writer
-                                   `(lambda (new-value object)
-                                     (declare (optimize (speed 1)))
-                                     (log.dribble "Entered writer for object ~A, generated for class ~A, slot ~A, slot-location ~A"
-                                      object ,class ,effective-slot ,(slot-definition-location effective-slot))
-                                     (if (eq (class-of object) ,class)
-                                         (progn
-                                           ,(setf-slot-value-using-class-body effective-slot))
-                                         (progn
-                                           (log.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
-                                                        object  (slot-definition-name ,effective-slot))
-                                           (setf (slot-value object ',(slot-definition-name effective-slot)) new-value))))))
-                                :specializers specializers
-                                :method-class (find-class 'computed-reader-method)))
-                effective-slot)))))
+          (let  ((method (ensure-method gf
+                                        (ecase type
+                                          (:reader
+                                           `(lambda (object)
+                                             (declare (optimize (speed 1)))
+                                             (log.dribble "Entered reader for object ~A, generated for class ~A, slot ~A, slot-location ~A"
+                                              object ,class ,effective-slot ,(slot-definition-location effective-slot))
+                                             (if (eq (class-of object) ,class)
+                                                 (progn
+                                                   ,(slot-value-using-class-body effective-slot))
+                                                 (progn
+                                                   (log.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
+                                                                object (slot-definition-name ,effective-slot))
+                                                   (slot-value object ',(slot-definition-name effective-slot))))))
+                                          (:writer
+                                           `(lambda (new-value object)
+                                             (declare (optimize (speed 1)))
+                                             (log.dribble "Entered writer for object ~A, generated for class ~A, slot ~A, slot-location ~A"
+                                              object ,class ,effective-slot ,(slot-definition-location effective-slot))
+                                             (if (eq (class-of object) ,class)
+                                                 (progn
+                                                   ,(setf-slot-value-using-class-body effective-slot))
+                                                 (progn
+                                                   (log.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
+                                                                object  (slot-definition-name ,effective-slot))
+                                                   (setf (slot-value object ',(slot-definition-name effective-slot)) new-value))))))
+                                        :specializers specializers
+                                        #+ensure-method-supports-method-class :method-class
+                                        #+ensure-method-supports-method-class (find-class 'computed-reader-method))))
+            #+ensure-method-supports-method-class
+            (setf (effective-slot-of method) effective-slot))))))
 
 (defun ensure-accessors-for (class)
   (loop for effective-slot :in (class-slots class)
@@ -369,27 +374,47 @@
 (defmethod finalize-inheritance :after ((class computed-class*))
   (ensure-accessors-for class))
 
-;; TODO this is not standard compliant: "Portable programs must not define methods on
+;;; make sure computed-object is among the supers (thanks to Pascal Constanza)
+(defmethod initialize-instance :around ((class computed-class) &rest initargs &key direct-superclasses)
+  (declare (dynamic-extent initargs))
+  (if (loop for class in direct-superclasses
+            thereis (subtypep class (find-class 'computed-object)))
+      (call-next-method)
+      (apply #'call-next-method
+             class
+             :direct-superclasses (append direct-superclasses (list (find-class 'computed-object)))
+             initargs)))
+
+(defmethod reinitialize-instance :around ((class computed-class) &rest initargs
+                                          &key (direct-superclasses '() direct-superclasses-p))
+  (declare (dynamic-extent initargs))
+  (if direct-superclasses-p
+      ;; if direct superclasses are explicitly passed
+      ;; this is exactly like above
+      (if (loop for class in direct-superclasses
+                thereis (subtypep class (find-class 'computed-object)))
+          (call-next-method)
+          (apply #'call-next-method
+                 class
+                 :direct-superclasses (append direct-superclasses (list (find-class 'computed-object)))
+                 initargs))
+      ;; if direct superclasses are not explicitly passed
+      ;; we _must_ not change anything
+      (call-next-method)))
+
+;; KLUDGE this is not standard compliant: "Portable programs must not define methods on
 ;; shared-initialize." (for classes)
+#+sbcl
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
-                                      &key direct-superclasses direct-slots &allow-other-keys)
+                                      &key direct-slots &allow-other-keys)
   "Support :computed #f slot argument for documentation purposes."
-  (remf-keywords args :direct-superclasses :direct-slots)
-  (let* ((computed-object (find-class 'computed-object))
-         (direct-superclasses (if (member computed-object direct-superclasses :test 'eq)
-                                  direct-superclasses
-                                  (append direct-superclasses (list computed-object))))
-         ;; TODO this has no effect on clisp: we don't even get here when there's already an error signalled for :computed #f
-         (direct-slots (loop for direct-slot :in direct-slots
+  (remf-keywords args :direct-slots)
+  (let* ((direct-slots (loop for direct-slot :in direct-slots
                              collect (progn
                                        (unless (getf direct-slot :computed)
                                          (remf-keywords direct-slot :computed))
                                        direct-slot))))
-    (apply #'call-next-method class slot-names :direct-superclasses direct-superclasses :direct-slots direct-slots args)))
-
-;; this definition is here to allow a :computed argument for the slot definition
-(defmethod shared-initialize :before ((object computed-slot-definition) slot-names &key computed &allow-other-keys)
-  (declare (ignore object slot-names computed)))
+    (apply #'call-next-method class slot-names :direct-slots direct-slots args)))
 
 
 

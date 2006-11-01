@@ -47,6 +47,7 @@
     (if *load-with-debug-p*
         (pushnew :debug *features*)
         (pushnew :optimize *features*))
+    #+sbcl(pushnew :ensure-method-supports-method-class *features*)
     (call-next-method)))
 
 (defsystem :computed-class
