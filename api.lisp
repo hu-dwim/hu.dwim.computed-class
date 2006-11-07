@@ -42,8 +42,8 @@
         ,docstring
         `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
           #+debug :form #+debug ',form
-          :compute-as (lambda (self current-value)
-                        (declare (ignorable self current-value))
+          :compute-as (lambda (-self- -current-value-)
+                        (declare (ignorable -self- -current-value-))
                         ,@form)
           ,@(when slot
               (list :slot slot))))

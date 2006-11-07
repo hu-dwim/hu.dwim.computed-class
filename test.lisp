@@ -92,7 +92,7 @@
       :initform (compute-as 42))
      (b
       :accessor b-of
-      :initform (compute-as (1+ (a-of self)))))
+      :initform (compute-as (1+ (a-of -self-)))))
     (:metaclass computed-class*))
 
   (defclass level0-1 (super)
@@ -137,7 +137,7 @@
   (let ((object (make-instance 'computed-test)))
     (signals unbound-slot (slot-a-of object))
     (setf (slot-a-of object) (compute-as 1))
-    (setf (slot-b-of object) (compute-as (1+ (slot-a-of self))))
+    (setf (slot-b-of object) (compute-as (1+ (slot-a-of -self-))))
     (is (= 2 (slot-b-of object)))
     (setf (slot-a-of object) 2)
     (is (= 2 (slot-a-of object)))
@@ -149,7 +149,7 @@
 (test computed-class/compute/1
   (let ((object (make-instance 'computed-test
                                :slot-a (compute-as 1)
-                               :slot-b (compute-as (1+ (slot-a-of self))))))
+                               :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= 1 (slot-a-of object)))
     (is (= 2 (slot-b-of object)))
     (setf (slot-a-of object) 2)
@@ -159,10 +159,10 @@
 (test computed-class/compute/2
   (let* ((object-1 (make-instance 'computed-test
                                   :slot-a (compute-as 1)
-                                  :slot-b (compute-as (1+ (slot-a-of self)))))
+                                  :slot-b (compute-as (1+ (slot-a-of -self-)))))
          (object-2 (make-instance 'computed-test
                                   :slot-a (compute-as (+ (slot-a-of object-1) (slot-b-of object-1)))
-                                  :slot-b (compute-as (1+ (slot-a-of self))))))
+                                  :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= 4 (slot-b-of object-2)))
     (setf (slot-a-of object-1) 2)
     (is (= 6 (slot-b-of object-2)))))
@@ -183,7 +183,7 @@
     (:metaclass computed-class*))
   (let ((object (make-instance 'sbcl-class-cache-computed-test
                                :slot-a (compute-as 1)
-                               :slot-b (compute-as (1+ (slot-a-of self))))))
+                               :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= 1 (slot-a-of object)))
     ;; the next call does not call slot-value-using-class probably because of some accessor method cache?
     (is (= 2 (slot-b-of object)))
@@ -200,13 +200,13 @@
     (setf (slot-a-of object) nil)
     (setf (slot-b-of object) nil)
     (setf (slot-a-of object) (compute-as 1))
-    (setf (slot-b-of object) (compute-as (1+ (slot-a-of self))))
+    (setf (slot-b-of object) (compute-as (1+ (slot-a-of -self-))))
     (is (= 2 (slot-b-of object)))
     (setf (slot-a-of object) (compute-as (* 6 7)))
     (is (= 43 (slot-b-of object)))
     (setf (slot-a-of object) nil)
     (is (null (slot-a-of object)))
-    (setf (slot-b-of object) (compute-as (not (slot-a-of self))))
+    (setf (slot-b-of object) (compute-as (not (slot-a-of -self-))))
     (is (not (null (slot-b-of object))))))
 
 ;;;;;;;;;;;;;;;;;;
@@ -223,7 +223,7 @@
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test
                                 :slot-a (compute-as 1)
-                                :slot-b (compute-as (1+ (slot-a-of self))))))
+                                :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (flet ((current-pulse ()
              (current-pulse (computed-state-or-nil object (find-slot (class-of object) 'slot-a)))))
       (let ((pulse (current-pulse)))
@@ -238,10 +238,10 @@
          (object (make-instance 'computed-test
                                 :slot-a (compute-as
                                           (when (or circularity flag)
-                                            (slot-b-of self)))
+                                            (slot-b-of -self-)))
                                 :slot-b (compute-as
                                           (when (or circularity (not flag))
-                                            (slot-a-of self))))))
+                                            (slot-a-of -self-))))))
     (setf flag #f)
     (invalidate-computed-slot object 'slot-a)
     (invalidate-computed-slot object 'slot-b)
@@ -284,7 +284,7 @@
       (measure (make-instance 'standard-test))
       (measure (make-instance 'computed-test
                               :slot-a (compute-as 0)
-                              :slot-b (compute-as (1+ (slot-a-of self))))))))
+                              :slot-b (compute-as (1+ (slot-a-of -self-))))))))
 
 (test computed-class/timing/2
   (finishes
@@ -297,7 +297,7 @@
       (measure (make-instance 'standard-test))
       (measure (make-instance 'computed-test
                               :slot-a (compute-as 0)
-                              :slot-b (compute-as (1+ (slot-a-of self))))))))
+                              :slot-b (compute-as (1+ (slot-a-of -self-))))))))
 
 
 (defun accessor-code-for (&optional (class 'computed-test) (slot 'slot-b))
