@@ -223,9 +223,10 @@
                                 "#f")
                      #-debug "n/a"))
     (if (eq object 'not-an-object-slot-state)
-        (format stream "<#~A :pulse ~A>" slot-name (cs-computed-at-pulse computed-state))
-        (format stream "~A/<#~A :pulse ~A :attached ~A>"
-                object slot-name (cs-computed-at-pulse computed-state) attached-p))))
+        (format stream "~A : <#~A :pulse ~A>"
+                (cs-value computed-state) slot-name (cs-computed-at-pulse computed-state))
+        (format stream "~A : ~A / <#~A :pulse ~A :attached ~A>"
+                (cs-value computed-state) object slot-name (cs-computed-at-pulse computed-state) attached-p))))
 
 
 
