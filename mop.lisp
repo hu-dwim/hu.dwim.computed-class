@@ -281,7 +281,7 @@
 (defmethod initialize-instance :around ((class computed-class) &rest initargs &key direct-superclasses)
   (declare (dynamic-extent initargs))
   (if (loop for class in direct-superclasses
-            thereis (subtypep class (find-class 'computed-object)))
+            thereis (ignore-errors (subtypep class (find-class 'computed-object))))
       (call-next-method)
       (apply #'call-next-method
              class
@@ -295,7 +295,7 @@
       ;; if direct superclasses are explicitly passed
       ;; this is exactly like above
       (if (loop for class in direct-superclasses
-                thereis (subtypep class (find-class 'computed-object)))
+                thereis (ignore-errors (subtypep class (find-class 'computed-object))))
           (call-next-method)
           (apply #'call-next-method
                  class
