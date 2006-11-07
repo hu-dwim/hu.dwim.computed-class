@@ -33,6 +33,7 @@
            #:computed-class*
            #:define-computed-universe
            #:self
+           #:current-value
            #:invalidate-computed-slot
            #:make-slot-uncomputed
            #:clet
