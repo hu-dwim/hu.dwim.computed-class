@@ -20,12 +20,29 @@
 ;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 ;;; IN THE SOFTWARE.
 
-(in-package :swank)
+(in-package :computed-class)
+
+#+#.(cl:when (cl:find-package "SWANK") '(:and))
+(eval-always
+  (use-package :swank))
 
 ;; when inspecting a computed slot, display the computed-state
 #+#.(cl:when (cl:find-package "SWANK") '(:and))
-(defmethod slot-value-using-class-for-inspector ((computed-class::class computed-class::computed-class)
-                                                 (computed-class::object computed-class::computed-object)
-                                                 (computed-class::slot computed-class::computed-effective-slot-definition))
-  #.(computed-class::standard-instance-access-form))
+(defmethod inspect-slot-for-emacs ((class computed-class)
+                                   (object computed-object)
+                                   (slot computed-effective-slot-definition))
+  ;; we skip svuc to avoid recalculation of invalid slots
+  (let ((value #.(standard-instance-access-form)))
+    (cond ((eq value '#.+unbound-slot-value+)
+           '("#<unbound>"))
+          ((computed-state-p value)
+           `(,(if (computed-state-valid-p value) "Valid" "Invalid")
+             ", value: " (:value ,(cs-value value))
+             ", pulse: " (:value ,(cs-computed-at-pulse value))
+             ", " (:value ,value "the computed-state")
+             " "
+             (:action "[invalidate]" ,(lambda () (invalidate-computed-state value)))
+             " "
+             (:action "[make unbound]" ,(lambda () (slot-makunbound-using-class class object slot)))))
+          (t (call-next-method)))))
 

@@ -71,7 +71,7 @@
    (:file "mop" :depends-on ("engine" "configuration"))
    (:file "api" :depends-on ("engine" "mop"))
    (:file "clet" :depends-on ("engine"))
-   (:file "swank-integration" :depends-on ("engine"))))
+   (:file "swank-integration" :depends-on ("engine" "mop"))))
 
 (defsystem :computed-class-test
   :description "Tests for the computed-class system."
