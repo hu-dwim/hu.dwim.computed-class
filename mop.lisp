@@ -139,6 +139,7 @@
                                  :test #'equal))))))
 
 (defmacro slot-value-using-class-body (object slot)
+  (declare (type (or symbol effective-slot-definition) slot))
   `(let ((slot-value (standard-instance-access-form ,object ,slot)))
     (when (eq slot-value ',+unbound-slot-value+)
       (error 'unbound-slot
@@ -151,15 +152,17 @@
         slot-value)))
 
 (debug-only
-  (defparameter *detached-count* 0))
+  (defparameter *detached-computed-state-count* 0
+    "When in debug mode, it holds the computed states that have been detached from their original place (i.e. by make-slot-uncomputed)."))
 
 (defmacro setf-slot-value-using-class-body (new-value object slot)
+  (declare (type (or symbol effective-slot-definition) slot))
   `(let ((slot-value (standard-instance-access-form ,object ,slot)))
     (if (computed-state-p ,new-value)
         (progn
           (when (computed-state-p slot-value)
             (setf (cs-attached-p slot-value) #f)
-            (debug-only (incf *detached-count*)))
+            (debug-only (incf *detached-computed-state-count*)))
           (setf (cs-attached-p ,new-value) #t)
           (setf (cs-object ,new-value) ,object)
           (setf (cs-slot ,new-value) ,slot)
