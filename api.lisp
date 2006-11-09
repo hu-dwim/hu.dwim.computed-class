@@ -40,16 +40,20 @@
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
       (unless (get ',compute-as-macro-name 'computed-universe)
         (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-      (defmacro ,verbose-compute-as-macro-name (() &body form)
+      (defmacro ,verbose-compute-as-macro-name ((&key kind) &body form)
         ,docstring
         `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
           #+debug :form #+debug ',form
-          :compute-as (lambda (,',self-variable-name ,',current-value-variable-name)
-                        (declare (ignorable ,',self-variable-name ,',current-value-variable-name))
+          :compute-as (lambda (,@(when (eq kind 'object-slot)
+                                       (list ',self-variable-name))
+                                 ,',current-value-variable-name)
+                        (declare (ignorable ,@(when (eq kind 'object-slot)
+                                                    (list ',self-variable-name))
+                                            ,',current-value-variable-name))
                         ,@form)))
       (defmacro ,compute-as-macro-name (&body body)
         ,docstring
-        `(,',verbose-compute-as-macro-name ()
+        `(,',verbose-compute-as-macro-name (:kind object-slot)
           ,@body)))))
 
 
