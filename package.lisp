@@ -34,11 +34,17 @@
            #:define-computed-universe
            #:-self-
            #:-current-value-
-           #:invalidate-computed-slot
            #:make-slot-uncomputed
            #:clet
-           #:computed-state-for
-           #:recompute-slot))
+           #:computed-state-value
+           #:computation-of-computed-state)
+
+  ;; for debug purposes
+  (:export #:computed-state-for
+           #:invalidate-computed-slot
+           #:invalidate-computed-state
+           #:recompute-slot
+           #:recompute-computed-state))
 
 (defpackage :computed-class-test
   (:use :cl :computed-class :closer-mop :arnesi))

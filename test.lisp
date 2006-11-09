@@ -55,8 +55,8 @@
   (let ((class
          (defclass computed-3 ()
            ((a)
-            #+sbcl(b :computed #f)
-            (c :computed #t))
+            #+sbcl(b :computed-in nil)
+            (c :computed-in compute-as))
            (:metaclass computed-class))))
     (flet ((computed-slot-p (slot-name)
              (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
@@ -77,7 +77,7 @@
   (let ((class
          (defclass computed-5 ()
            ((a)
-            (c :computed #t))
+            (c :computed-in #t))
            (:metaclass computed-class*))))
     (flet ((computed-slot-p (slot-name)
              (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
@@ -126,11 +126,11 @@
   ((slot-a
     :accessor slot-a-of
     :initarg :slot-a
-    :computed t)
+    :computed-in compute-as)
    (slot-b
     :accessor slot-b-of
     :initarg :slot-b
-    :computed t))
+    :computed-in compute-as))
   (:metaclass computed-class*))
 
 (test computed-class/boundp/1
@@ -178,8 +178,8 @@
     (slot-a-of object)
     (slot-b-of object))
   (defclass sbcl-class-cache-computed-test ()
-    ((slot-a :accessor slot-a-of :initarg :slot-a :computed #t)
-     (slot-b :accessor slot-b-of :initarg :slot-b :computed #t))
+    ((slot-a :accessor slot-a-of :initarg :slot-a :computed-in compute-as)
+     (slot-b :accessor slot-b-of :initarg :slot-b :computed-in compute-as))
     (:metaclass computed-class*))
   (let ((object (make-instance 'sbcl-class-cache-computed-test
                                :slot-a (compute-as 1)
@@ -225,7 +225,8 @@
                                 :slot-a (compute-as 1)
                                 :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (flet ((current-pulse ()
-             (current-pulse (computed-state-or-nil object (find-slot (class-of object) 'slot-a)))))
+             (awhen (computed-state-or-nil object (find-slot (class-of object) 'slot-a))
+               (current-pulse it))))
       (let ((pulse (current-pulse)))
         (setf (slot-a-of object) 2)
         (is (= (current-pulse) (+ 1 pulse)))
@@ -298,12 +299,3 @@
       (measure (make-instance 'computed-test
                               :slot-a (compute-as 0)
                               :slot-b (compute-as (1+ (slot-a-of -self-))))))))
-
-
-(defun accessor-code-for (&optional (class 'computed-test) (slot 'slot-b))
-  "Return the generated accessor code for the given class and slot in the current config."
-  (unless (typep class 'class)
-    (setf class (find-class class)))
-  (let ((slot (find-slot class slot)))
-    (values (slot-value-using-class-body slot)
-            (setf-slot-value-using-class-body slot))))

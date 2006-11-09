@@ -46,7 +46,7 @@
   (if *load-with-debug-p*
       (values)
       '(inline
-        incf-pulse current-pulse computed-state-object-slot-p
+        incf-pulse current-pulse
         computed-state-value (setf computed-state-value) primitive-p
         invalidate-computed-state computed-state-or-nil find-slot
         standard-instance-access (setf standard-instance-access))))
@@ -56,12 +56,33 @@
     (declaim ,(inline-declaration))
     (enable-sharp-boolean-syntax)))
 
-(defun standard-instance-access-form (&optional slot)
-  `(standard-instance-access object ,(if slot
-                                         (slot-definition-location slot)
-                                         '(slot-definition-location slot))))
+(defmacro standard-instance-access-form (object slot)
+  `(standard-instance-access ,object
+    ,(if (symbolp slot)
+         `(slot-definition-location ,slot)
+         (slot-definition-location slot))))
 
-(defun setf-standard-instance-access-form (&optional slot (new-value 'new-value))
+(defmacro setf-standard-instance-access-form (new-value object slot)
+  ;; the default
+  `(setf (standard-instance-access ,object
+          ,(if (symbolp slot)
+               `(slot-definition-location ,slot)
+               (slot-definition-location slot)))
+    ,new-value)
+  
+  ;; implementation specific overrides
+  #+sbcl `(setf (sb-pcl::clos-slots-ref (sb-pcl::std-instance-slots ,object)
+                 ,(if (symbolp slot)
+                      `(slot-definition-location ,slot)
+                      (slot-definition-location slot)))
+           ,new-value))
+
+#+nil(defun standard-instance-access-form (&optional (slot 'slot))
+  `(standard-instance-access object ,(if (symbolp slot)
+                                         `(slot-definition-location ,slot)
+                                         (slot-definition-location slot))))
+
+#+nil(defun setf-standard-instance-access-form (&optional (slot 'slot) (new-value 'new-value))
   ;; the default
   `(setf (standard-instance-access object ,(if slot
                                                (slot-definition-location slot)
@@ -70,8 +91,8 @@
   
   ;; implementation specific overrides
   #+sbcl `(setf (sb-pcl::clos-slots-ref (sb-pcl::std-instance-slots object)
-                 ,(if slot
-                      (slot-definition-location slot)
-                      '(slot-definition-location slot)))
+                 ,(if (symbolp slot)
+                      `(slot-definition-location ,slot)
+                      (slot-definition-location slot)))
            ,new-value))
 

@@ -32,12 +32,12 @@
                                    (object computed-object)
                                    (slot computed-effective-slot-definition))
   ;; we skip svuc to avoid recalculation of invalid slots
-  (let ((value #.(standard-instance-access-form)))
+  (let ((value (standard-instance-access-form object slot)))
     (cond ((eq value '#.+unbound-slot-value+)
            '("#<unbound>"))
           ((computed-state-p value)
-           `(,(if (computed-state-valid-p value) "Valid" "Invalid")
-             ", value: " (:value ,(cs-value value))
+           `(,(if (computed-state-valid-p value) "Valid: " "Invalid: ")
+             (:value ,(cs-value value))
              ", pulse: " (:value ,(cs-computed-at-pulse value))
              ", " (:value ,value "the computed-state")
              " "

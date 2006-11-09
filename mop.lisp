@@ -45,10 +45,11 @@
   (:documentation "This is the base class for all computed classes. The class need not be listed in the direct supers when defining a computed class because the metaclass makes sure it's among them."))
 
 (defclass computed-slot-definition (standard-slot-definition)
-  ((compute-as
-     :type computed-state
-     :accessor compute-as-of
-     :initarg :compute-as)
+  ((computed-in
+    :initform nil
+    :type symbol
+    :accessor computed-in-of
+    :initarg :computed-in)
    (computed-readers
     :initform nil
     :type list
@@ -60,10 +61,6 @@
     :accessor computed-writers-of
     :initarg :computed-writers)))
 
-;; this definition is here to allow a :computed argument for the slot definition
-(defmethod initialize-instance :before ((computed-slot-definition computed-slot-definition) &key computed &allow-other-keys)
-  (declare (ignore computed-slot-definition computed)))
-
 (defclass computed-direct-slot-definition (computed-slot-definition standard-direct-slot-definition)
   ())
 
@@ -73,6 +70,16 @@
 
 (defclass computed-effective-slot-definition (computed-slot-definition standard-effective-slot-definition)
   ())
+
+(defmethod shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names
+                                      &rest args &key initform computed-in &allow-other-keys)
+  (apply #'call-next-method computed-slot-definition slot-names
+         (append
+          (when (compute-as-form-p initform)
+            (if computed-in
+                (assert (eq (first initform) computed-in))
+                (list :computed-in (first initform))))
+          args)))
 
 (defmethod initialize-instance :around ((slot computed-direct-slot-definition-with-custom-accessors)
                                         &rest args &key readers writers &allow-other-keys)
@@ -84,14 +91,14 @@
        (symbolp (first form))
        (get (first form) 'computed-as-macro-p)))
 
-(defmethod direct-slot-definition-class ((class computed-class) &key initform (computed #f) &allow-other-keys)
-  (if (or computed
+(defmethod direct-slot-definition-class ((class computed-class) &key initform (computed-in #f) &allow-other-keys)
+  (if (or computed-in
           (compute-as-form-p initform))
       (find-class 'computed-direct-slot-definition)
       (call-next-method)))
 
-(defmethod direct-slot-definition-class ((class computed-class*) &key initform (computed #f) &allow-other-keys)
-  (if (or computed
+(defmethod direct-slot-definition-class ((class computed-class*) &key initform (computed-in #f) &allow-other-keys)
+  (if (or computed-in
           (compute-as-form-p initform))
       (find-class 'computed-direct-slot-definition-with-custom-accessors)
       (call-next-method)))
@@ -104,6 +111,7 @@
 
 (defmethod compute-effective-slot-definition :around ((class computed-class) name direct-slot-definitions)
   (declare (type list direct-slot-definitions))
+  ;; TODO: it is unclear what to do when the direct slot definitions have different computed-in specifications
   (let ((%computed-effective-slot-definition% (find-if (lambda (direct-slot-definition)
                                                          (typep direct-slot-definition 'computed-direct-slot-definition))
                                                        direct-slot-definitions)))
@@ -113,6 +121,10 @@
       ;; We collect and copy the readers and writers to the effective-slot, so we can access it
       ;; later when generating custom accessors.
       (when (typep it 'computed-effective-slot-definition)
+        (setf (computed-in-of it) (some (lambda (slot) (when (typep slot 'computed-direct-slot-definition)
+                                                         (computed-in-of slot)))
+                                        direct-slot-definitions))
+        (assert (computed-in-of it) nil "Computed effective slots must be assigned to a computed universe")
         (setf (computed-readers-of it)
               (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
                                        appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
@@ -125,71 +137,72 @@
                                                      (computed-writers-of direct-slot-definition)
                                                      (slot-definition-writers direct-slot-definition)))
                                  :test #'equal))))))
-(eval-always
-  ;; These are called at read-time and the purpose of this is to be able to share the code between
-  ;; the accessors and the real svuc (IOW, to avoid fatal copy-paste errors) and to be able to
-  ;; evaluate some computations at compule time when some more information is available (when
-  ;; generating accessors (in finalize-inheritance :after) the slot-definition-location can be
-  ;; captured into the generated accessors)
-  (defun slot-value-using-class-body (&optional slot)
-    `(let ((slot-value ,(standard-instance-access-form slot)))
-      (when (eq slot-value ',+unbound-slot-value+)
-        (error 'unbound-slot
-               :name ',(if slot
-                          (slot-definition-name slot)
-                          '(slot-definition-name slot))
-               :instance object))
-      (if (computed-state-p slot-value)
-          (let ((computed-state slot-value))
-            (when (has-recompute-state-contex)
-              (in-recompute-state-contex context
-                (push computed-state (rsc-used-computed-states context))))
-            (computed-state-value computed-state))
-          slot-value)))
 
-  (defun setf-slot-value-using-class-body (&optional slot)
-    `(let ((slot-value ,(standard-instance-access-form slot)))
-      (if (computed-state-p new-value)
-          (progn
-            #+debug(progn
-                     (when (computed-state-p slot-value)
-                       (setf (cs-attached-to-object-p slot-value) #f))
-                     (setf (cs-attached-to-object-p new-value) #t))
-            (setf (cs-object new-value) object)
-            (setf (cs-slot new-value) ,(or slot 'slot))
-            (invalidate-computed-state new-value)
-            (incf-pulse new-value)
-            ,(setf-standard-instance-access-form slot))
-          (if (computed-state-p slot-value)
-              (setf (computed-state-value slot-value) new-value)
-              ,(setf-standard-instance-access-form slot)))
-      new-value)))
+(defmacro slot-value-using-class-body (object slot)
+  `(let ((slot-value (standard-instance-access-form ,object ,slot)))
+    (when (eq slot-value ',+unbound-slot-value+)
+      (error 'unbound-slot
+             :name ',(if (symbolp slot)
+                         `(slot-definition-name ,slot)
+                         (slot-definition-name slot))
+             :instance ,object))
+    (if (computed-state-p slot-value)
+        (computed-state-value slot-value)
+        slot-value)))
+
+(defmacro setf-slot-value-using-class-body (new-value object slot)
+  `(let ((slot-value (standard-instance-access-form ,object ,slot)))
+    (if (computed-state-p ,new-value)
+        (progn
+          (when (computed-state-p slot-value)
+            (setf (cs-attached-p slot-value) #f))
+          (setf (cs-attached-p ,new-value) #t)
+          (setf (cs-object ,new-value) ,object)
+          (setf (cs-slot ,new-value) ,slot)
+          (setf (cs-kind ,new-value) 'object-slot)
+          (invalidate-computed-state ,new-value)
+          (incf-pulse ,new-value)
+          (setf-standard-instance-access-form ,new-value ,object ,slot))
+        (if (computed-state-p slot-value)
+            (setf (computed-state-value slot-value) ,new-value)
+            (setf-standard-instance-access-form (make-computed-state :universe
+                                                                     ,(if (symbolp slot)
+                                                                          `(get (computed-in-of ,slot) 'computed-universe)
+                                                                          `(get ',(computed-in-of slot) 'computed-universe))
+                                                                     #+debug :form #+debug ,new-value
+                                                                     :compute-as (constantly ,new-value)
+                                                                     :kind 'object-slot
+                                                                     :object ,object
+                                                                     :slot ,slot)
+                                                ,object
+                                                ,slot)))
+    new-value))
 
 (defmethod slot-value-using-class ((class computed-class)
                                    (object computed-object)
                                    (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  #.(slot-value-using-class-body))
+  (slot-value-using-class-body object slot))
 
 (defmethod (setf slot-value-using-class) (new-value
                                           (class computed-class)
                                           (object computed-object)
                                           (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  #.(setf-slot-value-using-class-body))
+  (setf-slot-value-using-class-body new-value object slot))
 
 (defmethod slot-boundp-using-class ((class computed-class)
                                     (object computed-object)
                                     (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  (not (eq #.(standard-instance-access-form)
+  (not (eq (standard-instance-access-form object slot)
            '#.+unbound-slot-value+)))
 
 (defmethod slot-makunbound-using-class ((class computed-class)
                                         (object computed-object)
                                         (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  #.(setf-standard-instance-access-form nil (quote (quote #.+unbound-slot-value+))))
+  (setf-standard-instance-access-form '#.+unbound-slot-value+ object slot))
 
 (defclass computed-accessor-method (standard-accessor-method)
   ((effective-slot
@@ -241,7 +254,7 @@
                                               object ,class ,effective-slot ,(slot-definition-location effective-slot))
                                              (if (eq (class-of object) ,class)
                                                  (progn
-                                                   ,(slot-value-using-class-body effective-slot))
+                                                   ,(macroexpand `(slot-value-using-class-body object ,effective-slot)))
                                                  (progn
                                                    (log.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
                                                                 object (slot-definition-name ,effective-slot))
@@ -253,7 +266,7 @@
                                               object ,class ,effective-slot ,(slot-definition-location effective-slot))
                                              (if (eq (class-of object) ,class)
                                                  (progn
-                                                   ,(setf-slot-value-using-class-body effective-slot))
+                                                   ,(macroexpand `(setf-slot-value-using-class-body new-value object ,effective-slot)))
                                                  (progn
                                                    (log.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
                                                                 object  (slot-definition-name ,effective-slot))
@@ -310,12 +323,12 @@
 #+sbcl
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
                                       &key direct-slots &allow-other-keys)
-  "Support :computed #f slot argument for documentation purposes."
+  "Support :computed-in #f slot argument for documentation purposes."
   (remf-keywords args :direct-slots)
   (let* ((direct-slots (loop for direct-slot :in direct-slots
                              collect (progn
-                                       (unless (getf direct-slot :computed)
-                                         (remf-keywords direct-slot :computed))
+                                       (unless (getf direct-slot :computed-in)
+                                         (remf-keywords direct-slot :computed-in))
                                        direct-slot))))
     (apply #'call-next-method class slot-names :direct-slots direct-slots args)))
 

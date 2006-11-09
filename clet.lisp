@@ -39,16 +39,10 @@
   (let ((state-variables (loop for (name nil) :in vars
                                collect (gensym (string name)))))
     ;; wrap the global computed-state-value accessors and do some extra work specific to handling variables
-    `(flet ((computed-state-value (computed-state)
+    `(flet (((setf computed-state-value) (new-value computed-state)
              (declare #.(optimize-declaration))
-             (when (has-recompute-state-contex)
-               (in-recompute-state-contex context
-                 (push computed-state (rsc-used-computed-states context))))
-             (computed-state-value computed-state))
-           ((setf computed-state-value) (new-value computed-state)
-             (declare #.(optimize-declaration))
-             #+debug(assert (not (typep new-value 'computed-state)) () "Setting computed-state's into variables should be done through the (computed-state-for var-name) form")
-             (setf (computed-state-value computed-state) new-value)))
+             ;; TODO:
+             (assert nil)))
       (symbol-macrolet (,@(loop for (name definition) :in vars
                                 for var = (gensym (string name))
                                 collect var :into vars

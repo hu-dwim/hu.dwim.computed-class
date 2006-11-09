@@ -34,7 +34,7 @@
   (declare (type symbol compute-as-macro-name))
   (let ((verbose-compute-as-macro-name (concatenate-symbol compute-as-macro-name "*"))
         (docstring (strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
-    `(eval-when (:compile-toplevel :load-toplevel)
+    `(eval-always
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
       (unless (get ',compute-as-macro-name 'computed-universe)
         (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
@@ -81,7 +81,7 @@
                (setf (slot-value-using-class class object slot) (cs-value computed-state))))))
 
 (defgeneric recompute-slot (object slot)
-  (:documentation "Enforces the recomputation of the given slot")
+  (:documentation "Enforces the recomputation of the given slot.")
   (:method ((object computed-object) (slot-name symbol))
            (recompute-slot object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
