@@ -28,7 +28,9 @@
 ;;; Public interface
 
 (defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
-                                                                       (format nil "~S" compute-as-macro-name))))
+                                                                       (format nil "~S" compute-as-macro-name)))
+                                                          (self-variable-name '-self-)
+                                                          (current-value-variable-name '-current-value-))
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
@@ -38,15 +40,13 @@
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
       (unless (get ',compute-as-macro-name 'computed-universe)
         (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-      (defmacro ,verbose-compute-as-macro-name ((&key slot) &body form)
+      (defmacro ,verbose-compute-as-macro-name (() &body form)
         ,docstring
         `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
           #+debug :form #+debug ',form
-          :compute-as (lambda (-self- -current-value-)
-                        (declare (ignorable -self- -current-value-))
-                        ,@form)
-          ,@(when slot
-              (list :slot slot))))
+          :compute-as (lambda (,',self-variable-name ,',current-value-variable-name)
+                        (declare (ignorable ,',self-variable-name ,',current-value-variable-name))
+                        ,@form)))
       (defmacro ,compute-as-macro-name (&body body)
         ,docstring
         `(,',verbose-compute-as-macro-name ()
