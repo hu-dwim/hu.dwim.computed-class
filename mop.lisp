@@ -150,12 +150,16 @@
         (computed-state-value slot-value)
         slot-value)))
 
+(debug-only
+  (defparameter *detached-count* 0))
+
 (defmacro setf-slot-value-using-class-body (new-value object slot)
   `(let ((slot-value (standard-instance-access-form ,object ,slot)))
     (if (computed-state-p ,new-value)
         (progn
           (when (computed-state-p slot-value)
-            (setf (cs-attached-p slot-value) #f))
+            (setf (cs-attached-p slot-value) #f)
+            (debug-only (incf *detached-count*)))
           (setf (cs-attached-p ,new-value) #t)
           (setf (cs-object ,new-value) ,object)
           (setf (cs-slot ,new-value) ,slot)

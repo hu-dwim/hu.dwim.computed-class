@@ -27,7 +27,7 @@
 ;;; These definitions need to be available by the time we are reading the other files, therefore
 ;;; they are in a standalone file.
 
-;; TODO: this should be in closer-mop
+;; TODO: this should be in closer-mop?
 (progn
   (defclass test ()
     (test-slot))
@@ -41,6 +41,10 @@
     "We use this symbol for unbound slot marking, so a quick eq is enough instead of a slot-boundp-using-class call.")
 
   (setf (find-class 'test) nil))
+
+(defmacro debug-only (&body body)
+  #+debug`(progn ,@body)
+  #-debug(declare (ignore body)))
 
 (defun inline-declaration ()
   (if *load-with-debug-p*
