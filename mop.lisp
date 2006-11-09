@@ -179,6 +179,7 @@
                                                                      #+debug :form #+debug ,new-value
                                                                      :compute-as (constantly ,new-value)
                                                                      :kind 'object-slot
+                                                                     :attached-p #t
                                                                      :object ,object
                                                                      :slot ,slot)
                                                 ,object
