@@ -81,22 +81,5 @@
                       (slot-definition-location slot)))
            ,new-value))
 
-#+nil(defun standard-instance-access-form (&optional (slot 'slot))
-  `(standard-instance-access object ,(if (symbolp slot)
-                                         `(slot-definition-location ,slot)
-                                         (slot-definition-location slot))))
 
-#+nil(defun setf-standard-instance-access-form (&optional (slot 'slot) (new-value 'new-value))
-  ;; the default
-  `(setf (standard-instance-access object ,(if slot
-                                               (slot-definition-location slot)
-                                               '(slot-definition-location slot)))
-    ,new-value)
-  
-  ;; implementation specific overrides
-  #+sbcl `(setf (sb-pcl::clos-slots-ref (sb-pcl::std-instance-slots object)
-                 ,(if (symbolp slot)
-                      `(slot-definition-location ,slot)
-                      (slot-definition-location slot)))
-           ,new-value))
 
