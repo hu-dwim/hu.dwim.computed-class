@@ -62,6 +62,7 @@
   (:method (old-value new-value)
            #f))
 
+;; TODO these should probably be simple defun's. who would ever want to override them and how? also they are suboptimal.
 (defgeneric invalidate-computed-slot (object slot)
   (:documentation "Forces the recalculation of a slot on the next slot-value or accessor call.")
   (:method ((object computed-object) (slot-name symbol))
@@ -70,19 +71,17 @@
            (let ((computed-state (computed-state-or-nil object slot)))
              (if computed-state
                  (invalidate-computed-state computed-state)
-                 (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object)))))
+                 (when (slot-boundp-using-class (class-of object) object slot)
+                   (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object))))))
 
 (defgeneric make-slot-uncomputed (object slot)
-  (:documentation "Makes the slot a constant slot with respect to other computed slots.")
+  (:documentation "Makes the slot a constant slot with respect to other computed slots. The current value will not be racalculated even if it's invalid.")
   (:method ((object computed-object) (slot-name symbol))
            (make-slot-uncomputed object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (let* ((class (class-of object))
-                  (computed-state (computed-state-or-nil object slot)))
+           (let ((computed-state (computed-state-or-nil object slot)))
              (when computed-state
-               ;; first we must make it unbound, so the (setf slot-value-using-class) will simply (call-next-method) with the new value
-               (slot-makunbound-using-class class object slot)
-               (setf (slot-value-using-class class object slot) (cs-value computed-state))))))
+               (setf-standard-instance-access-form (cs-value computed-state) object slot)))))
 
 (defgeneric recompute-slot (object slot)
   (:documentation "Enforces the recomputation of the given slot.")
@@ -92,7 +91,9 @@
            (let ((computed-state (computed-state-or-nil object slot)))
              (if computed-state
                  (recompute-computed-state computed-state)
-                 (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)))))
+                 (if (slot-boundp-using-class (class-of object) object slot)
+                     (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)
+                     (slot-unbound (class-of object) object (slot-definition-name slot)))))))
 
 
 

@@ -62,23 +62,23 @@
 
 (defmacro standard-instance-access-form (object slot)
   `(standard-instance-access ,object
-    ,(if (symbolp slot)
-         `(slot-definition-location ,slot)
-         (slot-definition-location slot))))
+    ,(if (typep slot 'effective-slot-definition)
+         (slot-definition-location slot)
+         `(slot-definition-location ,slot))))
 
 (defmacro setf-standard-instance-access-form (new-value object slot)
   ;; the default
   `(setf (standard-instance-access ,object
-          ,(if (symbolp slot)
-               `(slot-definition-location ,slot)
-               (slot-definition-location slot)))
+          ,(if (typep slot 'effective-slot-definition)
+               (slot-definition-location slot)
+               `(slot-definition-location ,slot)))
     ,new-value)
   
   ;; implementation specific overrides
   #+sbcl `(setf (sb-pcl::clos-slots-ref (sb-pcl::std-instance-slots ,object)
-                 ,(if (symbolp slot)
-                      `(slot-definition-location ,slot)
-                      (slot-definition-location slot)))
+                 ,(if (typep slot 'effective-slot-definition)
+                      (slot-definition-location slot)
+                      `(slot-definition-location ,slot)))
            ,new-value))
 
 

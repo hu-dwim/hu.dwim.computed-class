@@ -26,9 +26,10 @@
   (import (let ((*package* (find-package :computed-class)))
             (read-from-string "(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse
                                 slot-value-using-class-body setf-slot-value-using-class-body
+                                enable-sharp-boolean-syntax standard-instance-access-form computed-state-p
                                 log.dribble log.debug log.info log.warn log.error)"))))
 
-(computed-class::enable-sharp-boolean-syntax)
+(enable-sharp-boolean-syntax)
 
 (def-suite :computed-class :description "Computed class tests")
 
@@ -208,6 +209,29 @@
     (is (null (slot-a-of object)))
     (setf (slot-b-of object) (compute-as (not (slot-a-of -self-))))
     (is (not (null (slot-b-of object))))))
+
+(test computed-class/reconfigure/2
+  (let ((object (make-instance 'computed-test)))
+    (flet ((current-pulse ()
+             (awhen (computed-state-or-nil object (find-slot (class-of object) 'slot-b))
+               (current-pulse it))))
+      (setf (slot-a-of object) 1)
+      (setf (slot-b-of object) (compute-as (1+ (slot-a-of object))))
+      (is (= 1 (slot-a-of object)))
+      (is (= 2 (slot-b-of object)))
+      (make-slot-uncomputed object 'slot-a)
+      (let ((pulse (current-pulse)))
+        (is (= 1 (slot-a-of object)))
+        (is (= 2 (slot-b-of object)))
+        (setf (slot-a-of object) 42)
+        (is (not (computed-state-p (standard-instance-access-form object (find-slot (class-of object) 'slot-a)))))
+        (is (= 2 (slot-b-of object)))
+        (is (= pulse (current-pulse)))
+        (setf (slot-a-of object) (compute-as 42)) ; make it computed again
+        (is (= (+ pulse 1) (current-pulse)))
+        (is (= 2 (slot-b-of object))) ; dependency should not have been registered, so it should not get recalculated
+        (invalidate-computed-slot object 'slot-b)
+        (is (= 43 (slot-b-of object)))))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;; clet tests

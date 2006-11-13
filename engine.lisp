@@ -73,7 +73,7 @@
           :type (or atom list))
   (kind
    'standalone
-   :type symbol)
+   :type (member standalone object-slot variable))
   ;; contains the name of the variable
   (variable
    nil
@@ -245,7 +245,7 @@
 
 (defun computed-state-or-nil (object slot)
   (declare (type (or symbol computed-object) object)
-           (type (or null computed-effective-slot-definition) slot)
+           (type computed-effective-slot-definition slot)
            #.(optimize-declaration))
   (the (or null computed-state)
     (let ((result (standard-instance-access-form object slot)))

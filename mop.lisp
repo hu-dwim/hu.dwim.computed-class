@@ -158,6 +158,7 @@
 (defmacro setf-slot-value-using-class-body (new-value object slot)
   (declare (type (or symbol effective-slot-definition) slot))
   `(let ((slot-value (standard-instance-access-form ,object ,slot)))
+    ;; an equivalent cond is compiled into considerably slower code on sbcl (?!).
     (if (computed-state-p ,new-value)
         (progn
           (when (computed-state-p slot-value)
@@ -172,18 +173,23 @@
           (setf-standard-instance-access-form ,new-value ,object ,slot))
         (if (computed-state-p slot-value)
             (setf (computed-state-value slot-value) ,new-value)
-            (setf-standard-instance-access-form (make-computed-state :universe
-                                                                     ,(if (symbolp slot)
-                                                                          `(get (computed-in-of ,slot) 'computed-universe)
-                                                                          `(get ',(computed-in-of slot) 'computed-universe))
-                                                                     #+debug :form #+debug ,new-value
-                                                                     :compute-as (constantly ,new-value)
-                                                                     :kind 'object-slot
-                                                                     :attached-p #t
-                                                                     :object ,object
-                                                                     :slot ,slot)
-                                                ,object
-                                                ,slot)))
+            ;; by default unbound computed slots are initialized to be a computed slot, even when setting a constant in them.
+            (if (eq slot-value '#.+unbound-slot-value+)
+                (setf-standard-instance-access-form (make-computed-state :universe
+                                                                         ,(if (symbolp slot)
+                                                                              `(get (computed-in-of ,slot) 'computed-universe)
+                                                                              `(get ',(computed-in-of slot) 'computed-universe))
+                                                                         #+debug :form #+debug ,new-value
+                                                                         :compute-as (constantly ,new-value)
+                                                                         :kind 'object-slot
+                                                                         :attached-p #t
+                                                                         :object ,object
+                                                                         :slot ,slot)
+                                                    ,object
+                                                    ,slot)
+                ;; there was a non-computed-state in the slot and we are setting a non-computed-state
+                ;; new-value: keep the slot uncomputed.
+                (setf-standard-instance-access-form ,new-value ,object ,slot))))
     new-value))
 
 (defmethod slot-value-using-class ((class computed-class)
