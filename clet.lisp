@@ -56,21 +56,25 @@
         (symbol-macrolet (,@(loop for (name definition) :in vars
                                   for var :in state-variables
                                   when var collect (list name `(computed-state-value ,var)))
-                          ;; these are NAME-state definitions that expand to the gensym-ed variables,
-                          ;; so through them you can access the actual states directly (e.g. to set
-                          ;; state variables captured by various closures) 
+                          ;; these are NAME-state definitions that expand to flet's that read/write
+                          ;; the gensym-ed variables, so through them you can access the actual
+                          ;; states directly (e.g. to set state variables captured by various
+                          ;; closures)
                           ,@(loop for (name definition) :in vars
+                                  for var :in state-variables
                                   for state-name = (concatenate-symbol name "-state")
-                                  collect `(,state-name (,(concatenate-symbol "state-of-" name)))))
-          ;; define macrolet's with the name NAME-computed-state that can access the
+                                  when var collect `(,state-name (,(concatenate-symbol "state-of-" name)))))
+          ;; define the variables themselves
           (let* ,(loop for (name definition) :in vars
                        for var :in state-variables
                        collect (if var
                                    `(,var (aprog1
                                               ,definition
+                                            (assert (eq (cs-kind it) 'variable))
                                             (setf (cs-attached-p it) #t)))
                                    (list name definition)))
             (declare (ignorable ,@(remove-if #'null state-variables)))
+            ;; define reader and writer flet's that handle the access of the NAME-state variables
             (flet (,@(loop for (name nil) :in vars
                            for var :in state-variables
                            when var collect `(,(concatenate-symbol "state-of-" name) ()

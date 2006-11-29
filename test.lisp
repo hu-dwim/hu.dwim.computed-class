@@ -262,7 +262,7 @@
     (signals error (setf a (compute-as 42))) ; this is not the way to do it
     (let ((old-a-state a-state))
       (is (cs-attached-p old-a-state))
-      (setf a-state (compute-as 42)) ; this setf also invalidates the state of 'b' and 'c'
+      (setf a-state (compute-as 42))    ; this setf also invalidates the state of 'b' and 'c'
       (is (not (cs-attached-p old-a-state))))
     (is (= c 85))
     (setf a 43)
@@ -272,11 +272,13 @@
   (clet ((a 42)
          (b (compute-as (1+ a)))
          (c (compute-as (1+ b))))
+    (locally (declare #+sbcl(sb-ext:muffle-conditions warning))
+      (signals unbound-variable (print a-state)))
     (is (= a 42))
     (is (= b 43))
     (is (= c 44))
-    (setf a 2)
-    (is (= a 2))                        ; does not invalidate anything, that's a simple let* binding
+    (setf a 2)                          ; does not invalidate anything, that's a simple let* binding
+    (is (= a 2))
     (is (= b 43))
     (is (= c 44))
     (invalidate-computed-state b-state)
@@ -303,8 +305,8 @@
     (is (= (funcall a-reader) 42))
     (is (= (funcall b-reader) 43))
     (is (= (funcall c-reader) 44))
-    (funcall a-writer 2)
-    (is (= (funcall a-reader) 2))                      ; does not invalidate anything, that's a simple let* binding
+    (funcall a-writer 2)                ; does not invalidate anything, that's a simple let* binding
+    (is (= (funcall a-reader) 2))
     (is (= (funcall b-reader) 43))
     (is (= (funcall c-reader) 44))
     (invalidate-computed-state (funcall b-state-reader)) ; should also invalidate 'c'
