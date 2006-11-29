@@ -39,11 +39,14 @@
 (defparameter *default-universe* (make-computed-universe :name "Default computed universe"))
 
 (defun incf-pulse (computed-state)
-  (declare (type computed-state computed-state))
+  (declare (type computed-state computed-state)
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+  ;; TODO think about fixnum overflow...
   (incf (cu-pulse (cs-universe computed-state))))
 
 (defun current-pulse (computed-state)
-  (declare (type computed-state computed-state))
+  (declare (type computed-state computed-state)
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (cu-pulse (cs-universe computed-state)))
 
 (defstruct (computed-state (:conc-name cs-) (:print-object print-computed-state))
@@ -116,7 +119,7 @@
            (type function new-value)
            #.(optimize-declaration))
   (setf (cs-compute-as computed-state) new-value)
-  (invalidate-computed-state computed-state))
+  (invalidate-computed-state computed-state #t))
 
 (defun (setf computed-state-value) (new-value computed-state)
   "Set the value, invalidate and recalculate as needed."
@@ -164,6 +167,8 @@
             (log.debug "Not storing fresh recomputed value for ~A because it was equal to the cached value." computed-state))
         new-value))))
 
+(locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+;; TODO: the muffle is only needed because pulse is not fixnum for now
 (defun computed-state-valid-p (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
@@ -193,8 +198,8 @@
           (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state))
           (progn
             (log.debug "Value turned out to be invalid for ~A" computed-state)
-            (invalidate-computed-state computed-state)))
-      (values valid-p newer-computed-state))))
+            (invalidate-computed-state computed-state #t)))
+      (values valid-p newer-computed-state)))))
 
 (defun check-circularity (computed-state)
   (declare (type computed-state computed-state)
@@ -210,8 +215,11 @@
                                 while parent-context
                                 collect (cs-slot (rsc-computed-state parent-context))))))))))
 
-(defun invalidate-computed-state (computed-state)
+(defun invalidate-computed-state (computed-state &optional locally)
+  "Invalidate the given COMPUTED-STATE. When LOCALLY is #t then this invalidation has only local effects on this computed-state and the dependent computed-states are not invalidated."
   (declare (type computed-state computed-state))
+  (unless locally
+    (incf-pulse computed-state))
   (setf (cs-computed-at-pulse computed-state) #.+invalid-pulse+)
   (setf (cs-validated-at-pulse computed-state) #.+invalid-pulse+))
 
@@ -253,4 +261,30 @@
                  (computed-state-p result))
         result))))
 
+(defun compute-as-form-p (form)
+  "To identify forms that create a computed state, IOW all kind of (compute-as ...) forms."
+  (and (consp form)
+       (symbolp (first form))
+       (get (first form) 'computed-as-macro-p)))
+
+(defun primitive-compute-as-form-p (form)
+  "To identify (compute-as* ...) forms, that are the primitive computed state factories of a computed universe."
+  (and (compute-as-form-p form)
+       (eq (first form) (get (first form) 'primitive-compute-as-macro))))
+
+(defun primitive-compute-as-form-of (input-form &optional env)
+  (if (primitive-compute-as-form-p input-form)
+      input-form
+      (loop with form = input-form
+            with expanded-p = #t
+            while (progn
+                    (multiple-value-setq (form expanded-p) (macroexpand-1 form env))
+                    expanded-p)
+            do (when (primitive-compute-as-form-p form)
+                 (return form))
+            finally (error "Form ~S can not be macroexpanded into a primitive-compute-as-form-p. This should not happen." input-form))))
+
+(defun primitive-compute-as-form-with-ensured-kind (form kind)
+  `(,(first form) (:kind ,kind ,@(remove-keywords (second form) :kind))
+    ,@(cddr form)))
 

@@ -78,7 +78,7 @@
   (let ((class
          (defclass computed-5 ()
            ((a)
-            (c :computed-in #t))
+            (c :computed-in compute-as))
            (:metaclass computed-class*))))
     (flet ((computed-slot-p (slot-name)
              (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
@@ -168,8 +168,23 @@
     (setf (slot-a-of object-1) 2)
     (is (= 6 (slot-b-of object-2)))))
 
-;; TODO: send a bug report to SBCL's list
 (test computed-class/compute/3
+  (let* ((object-1 (make-instance 'computed-test
+                                  :slot-b (compute-as (1+ (slot-a-of -self-)))))
+         (object-2 (make-instance 'computed-test
+                                  :slot-a (compute-as (+ (slot-a-of object-1) (slot-b-of object-1)))
+                                  :slot-b (compute-as (1+ (slot-a-of -self-))))))
+    (signals unbound-slot (slot-a-of object-1))
+    (setf (slot-a-of object-1) 0)
+    (is (= 0 (slot-a-of object-1)))
+    (is (= 2 (slot-b-of object-2)))
+    (setf (slot-a-of object-1) 2)
+    (setf (slot-b-of object-2) (compute-as (* 2 (slot-a-of -self-))))
+    (is (= 5 (slot-a-of object-2)))
+    (is (= 10 (slot-b-of object-2)))))
+
+;; TODO: send a bug report to SBCL's list
+(test computed-class/compute/4
   (setf (find-class 'sbcl-class-cache-computed-test) nil)
   (defclass sbcl-class-cache-computed-test ()
     ((slot-a :accessor slot-a-of :initarg :slot-a)
@@ -242,7 +257,55 @@
          (c (compute-as (+ a b))))
     (is (= 3 c))
     (setf a 2)
-    (is (= 5 c))))
+    (is (= 5 c))
+    (signals error (setf a (compute-as 42))) ; this is not the way to do it
+    (setf a-state (compute-as 42))           ; this setf also invalidates the state of 'b' and 'c'
+    (is (= 85 c))
+    (setf a 43)
+    (is (= 87 c))))
+
+(test computed-class/clet/2
+  (clet ((a 42)
+         (b (compute-as (1+ a)))
+         (c (compute-as (1+ b))))
+    (is (= a 42))
+    (is (= b 43))
+    (is (= c 44))
+    (setf a 2)
+    (is (= a 2))                        ; does not invalidate anything, that's a simple let* binding
+    (is (= b 43))
+    (is (= c 44))
+    (invalidate-computed-state b-state)
+    (is (= b 3))
+    (is (= c 4))))
+
+(test computed-class/clet/3
+  ;; same as computed-class/clet/2, but with variable capturing
+  (let (a-reader
+        a-writer
+        b-reader
+        b-writer
+        b-state-reader
+        c-reader)
+    (clet ((a 42)
+           (b (compute-as (1+ a)))
+           (c (compute-as (1+ b))))
+      (setf a-reader (lambda () a)
+            b-reader (lambda () b)
+            c-reader (lambda () c)
+            a-writer (lambda (value) (setf a value))
+            b-writer (lambda (value) (setf b value))
+            b-state-reader (lambda () b-state)))
+    (is (= (funcall a-reader) 42))
+    (is (= (funcall b-reader) 43))
+    (is (= (funcall c-reader) 44))
+    (funcall a-writer 2)
+    (is (= (funcall a-reader) 2))                      ; does not invalidate anything, that's a simple let* binding
+    (is (= (funcall b-reader) 43))
+    (is (= (funcall c-reader) 44))
+    (invalidate-computed-state (funcall b-state-reader)) ; should also invalidate 'c'
+    (is (= (funcall b-reader) 3))
+    (is (= (funcall c-reader) 4))))
 
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test

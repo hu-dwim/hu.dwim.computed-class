@@ -32,42 +32,54 @@
 ;; - (computed-state-for NAME) works only on one level (probably not trivial to overcome this)
 ;; - warnings/notes due to unused functions and optimization
 
-(defmacro clet (vars &body body)
+(defmacro clet (vars &body body &environment env)
   "A let* with extra semantics to handle computed variables. For now see the code and the test file for details.
    Available bindings in the body:
-     - (computed-state-for NAME) A macro to access the place itself, so you can setf closed-over computed variables to new (compute-as ...) forms."
-  (let ((state-variables (loop for (name nil) :in vars
-                               collect (gensym (string name)))))
+     - (computed-state-for NAME) A macro to access the place itself that holds the computed state, so you can 
+       setf closed-over computed variables to new (compute-as ...) forms."
+  (let ((state-variables (loop for (name definition) :in vars
+                               collect (if (compute-as-form-p definition)
+                                           (gensym (string name))
+                                           nil))))
+    (setf vars (loop for (name definition) :in vars
+                     collect (list name (if (compute-as-form-p definition)
+                                            (primitive-compute-as-form-with-ensured-kind (primitive-compute-as-form-of definition env)
+                                                                                         'variable)
+                                            definition))))
     ;; wrap the global computed-state-value accessors and do some extra work specific to handling variables
-    `(flet (((setf computed-state-value) (new-value computed-state)
-             (declare #.(optimize-declaration))
-             ;; TODO:
-             (assert nil)))
-      (symbol-macrolet (,@(loop for (name definition) :in vars
-                                for var = (gensym (string name))
-                                collect var :into vars
-                                collect (list name `(computed-state-value ,var)) :into result
-                                finally (progn
-                                          (setf state-variables vars)
-                                          (return result)))
+    `(locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+      (flet (((setf computed-state-value) (new-value computed-state)
+               (declare #.(optimize-declaration))
+               (assert (not (computed-state-p new-value)) ()
+                       "You are setting a computed-state into a clet variable, you probably don't want to do that. Hint: (setf foo-state (compute-as 42)).")
+               (setf (computed-state-value computed-state) new-value)))
+        (symbol-macrolet (,@(loop for (name definition) :in vars
+                                  for var :in state-variables
+                                  when var collect (list name `(computed-state-value ,var)))
                           ;; these are NAME-state definitions that expand to the gensym-ed variables,
                           ;; so through them you can access the actual states directly (e.g. to set
                           ;; state variables captured by various closures) 
                           ,@(loop for (name definition) :in vars
-                                  for var :in state-variables
                                   for state-name = (concatenate-symbol name "-state")
-                                  collect (list state-name var)))
-        (macrolet ((computed-state-for (variable)
-                     (case variable
-                       ,@(loop for (name nil) :in vars
-                               for state-variable :in state-variables
-                               collect `(,name ',state-variable))
-                       (t (error "Limitation: computed-state-for can only access the state variables in the closest computed-let form. Variable ~S was not found there." variable)))))
+                                  collect `(,state-name (,(concatenate-symbol "state-of-" name)))))
+          ;; define macrolet's with the name NAME-computed-state that can access the
           (let* ,(loop for (name definition) :in vars
                        for var :in state-variables
-                       collect (list var definition))
-            (declare (ignorable ,@state-variables))
-            ,@body))))))
+                       collect (if var
+                                   (list var definition)
+                                   (list name definition)))
+            (declare (ignorable ,@(remove-if #'null state-variables)))
+            (flet (,@(loop for (name nil) :in vars
+                           for var :in state-variables
+                           when var collect `(,(concatenate-symbol "state-of-" name) ()
+                                              ,var))
+                   ,@(loop for (name nil) :in vars
+                           for var :in state-variables
+                           when var collect `((setf ,(concatenate-symbol "state-of-" name)) (new-value)
+                                              (incf-pulse new-value)
+                                              (setf ,var new-value))))
+              (declare #+sbcl(sb-ext:unmuffle-conditions))
+              ,@body)))))))
 
 
 

@@ -38,11 +38,16 @@
         (docstring (strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
     `(eval-always
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
-      (unless (get ',compute-as-macro-name 'computed-universe)
-        (setf (get ',compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-      (defmacro ,verbose-compute-as-macro-name ((&key kind) &body form)
+      (setf (get ',compute-as-macro-name 'primitive-compute-as-macro) ',verbose-compute-as-macro-name)
+      
+      (setf (get ',verbose-compute-as-macro-name 'computed-as-macro-p) t)
+      (setf (get ',verbose-compute-as-macro-name 'primitive-compute-as-macro) ',verbose-compute-as-macro-name)
+      
+      (unless (get ',verbose-compute-as-macro-name 'computed-universe)
+        (setf (get ',verbose-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
+      (defmacro ,verbose-compute-as-macro-name ((&key (kind 'object-slot)) &body form)
         ,docstring
-        `(make-computed-state :universe (get ',',compute-as-macro-name 'computed-universe)
+        `(make-computed-state :universe (get ',',verbose-compute-as-macro-name 'computed-universe)
           #+debug :form #+debug ',form
           :compute-as (lambda (,@(when (eq kind 'object-slot)
                                        (list ',self-variable-name))
@@ -50,10 +55,11 @@
                         (declare (ignorable ,@(when (eq kind 'object-slot)
                                                     (list ',self-variable-name))
                                             ,',current-value-variable-name))
-                        ,@form)))
+                        ,@form)
+          :kind ',kind))
       (defmacro ,compute-as-macro-name (&body body)
         ,docstring
-        `(,',verbose-compute-as-macro-name (:kind object-slot)
+        `(,',verbose-compute-as-macro-name ()
           ,@body)))))
 
 

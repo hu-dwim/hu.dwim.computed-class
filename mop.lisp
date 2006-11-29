@@ -72,24 +72,41 @@
   ())
 
 (defmethod shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names
-                                      &rest args &key initform computed-in &allow-other-keys)
-  (apply #'call-next-method computed-slot-definition slot-names
-         (append
-          (when (compute-as-form-p initform)
-            (if computed-in
-                (assert (eq (first initform) computed-in))
-                (list :computed-in (first initform))))
-          args)))
+                                      &rest args &key (initform nil initform-p) computed-in &allow-other-keys)
+  ;; convert the initform into a compute-as* primitive form, assert and set computed-in properly
+  (when computed-in
+    (assert (get computed-in 'computed-as-macro-p) ()
+            "The specified :computed-in argument ~S is not a compute-as macro in any computed universe"
+            computed-in)
+    (setf computed-in (get computed-in 'primitive-compute-as-macro))
+    (assert computed-in))
+  (let ((primitive-form (if (compute-as-form-p initform)
+                            (primitive-compute-as-form-of initform)
+                            initform)))
+    (when (and initform-p
+               primitive-form)
+      (if computed-in
+          (assert (eq (first primitive-form) computed-in) ()
+                  ":computed-in and the :initform parameters are not consistent. ~S is not computed in ~S"
+                  initform computed-in)
+          (setf computed-in (first primitive-form)))
+      ;; to enforce :kind 'object-slot. should it be an assert instead?
+      ;;(setf primitive-form (primitive-compute-as-form-with-ensured-kind primitive-form 'object-slot))
+      )
+    (apply #'call-next-method computed-slot-definition slot-names
+           (append
+            (list :computed-in computed-in)
+            (when initform-p
+              (list :initform primitive-form
+                    :initfunction (if primitive-form
+                                      (compile nil `(lambda () ,primitive-form))
+                                      (constantly nil))))
+            args))))
 
 (defmethod initialize-instance :around ((slot computed-direct-slot-definition-with-custom-accessors)
                                         &rest args &key readers writers &allow-other-keys)
   (remf-keywords args :readers :writers)
   (apply #'call-next-method slot :computed-readers readers :computed-writers writers args))
-
-(defun compute-as-form-p (form)
-  (and (consp form)
-       (symbolp (first form))
-       (get (first form) 'computed-as-macro-p)))
 
 (defmethod direct-slot-definition-class ((class computed-class) &key initform (computed-in #f) &allow-other-keys)
   (if (or computed-in
@@ -161,15 +178,14 @@
     ;; an equivalent cond is compiled into considerably slower code on sbcl (?!).
     (if (computed-state-p ,new-value)
         (progn
+          (assert (eq (cs-kind ,new-value) 'object-slot) () "Trying to set a computed state into a slot with kind ~S" (cs-kind ,new-value))
           (when (computed-state-p slot-value)
             (setf (cs-attached-p slot-value) #f)
             (debug-only (incf *detached-computed-state-count*)))
           (setf (cs-attached-p ,new-value) #t)
           (setf (cs-object ,new-value) ,object)
           (setf (cs-slot ,new-value) ,slot)
-          (setf (cs-kind ,new-value) 'object-slot)
           (invalidate-computed-state ,new-value)
-          (incf-pulse ,new-value)
           (setf-standard-instance-access-form ,new-value ,object ,slot))
         (if (computed-state-p slot-value)
             (setf (computed-state-value slot-value) ,new-value)
