@@ -27,7 +27,8 @@
             (read-from-string "(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse
                                 slot-value-using-class-body setf-slot-value-using-class-body
                                 enable-sharp-boolean-syntax standard-instance-access-form computed-state-p
-                                log.dribble log.debug log.info log.warn log.error)"))))
+                                log.dribble log.debug log.info log.warn log.error
+                                cs-attached-p)"))))
 
 (enable-sharp-boolean-syntax)
 
@@ -255,14 +256,17 @@
   (clet ((a (compute-as 1))
          (b (compute-as (1+ a)))
          (c (compute-as (+ a b))))
-    (is (= 3 c))
+    (is (= c 3))
     (setf a 2)
-    (is (= 5 c))
+    (is (= c 5))
     (signals error (setf a (compute-as 42))) ; this is not the way to do it
-    (setf a-state (compute-as 42))           ; this setf also invalidates the state of 'b' and 'c'
-    (is (= 85 c))
+    (let ((old-a-state a-state))
+      (is (cs-attached-p old-a-state))
+      (setf a-state (compute-as 42)) ; this setf also invalidates the state of 'b' and 'c'
+      (is (not (cs-attached-p old-a-state))))
+    (is (= c 85))
     (setf a 43)
-    (is (= 87 c))))
+    (is (= c 87))))
 
 (test computed-class/clet/2
   (clet ((a 42)
@@ -306,6 +310,22 @@
     (invalidate-computed-state (funcall b-state-reader)) ; should also invalidate 'c'
     (is (= (funcall b-reader) 3))
     (is (= (funcall c-reader) 4))))
+
+(test computed-class/clet/4
+  (clet ((a (compute-as 2))
+         (object (make-instance 'computed-test
+                                :slot-a (compute-as (1+ a))
+                                :slot-b (compute-as (1+ (slot-a-of -self-)))))
+         (b (compute-as (+ a (slot-b-of object)))))
+    (is (= a 2))
+    (is (= b 6))
+    (is (= (slot-a-of object) 3))
+    (is (= (slot-b-of object) 4))
+    (setf (slot-a-of object) 42)
+    (is (= a 2))
+    (is (= b 45))
+    (is (= (slot-a-of object) 42))
+    (is (= (slot-b-of object) 43))))
 
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test

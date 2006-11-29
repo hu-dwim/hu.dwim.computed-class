@@ -66,7 +66,9 @@
           (let* ,(loop for (name definition) :in vars
                        for var :in state-variables
                        collect (if var
-                                   (list var definition)
+                                   `(,var (aprog1
+                                              ,definition
+                                            (setf (cs-attached-p it) #t)))
                                    (list name definition)))
             (declare (ignorable ,@(remove-if #'null state-variables)))
             (flet (,@(loop for (name nil) :in vars
@@ -77,6 +79,8 @@
                            for var :in state-variables
                            when var collect `((setf ,(concatenate-symbol "state-of-" name)) (new-value)
                                               (incf-pulse new-value)
+                                              (setf (cs-attached-p ,var) #f)
+                                              (setf (cs-attached-p new-value) #t)
                                               (setf ,var new-value))))
               (declare #+sbcl(sb-ext:unmuffle-conditions))
               ,@body)))))))
