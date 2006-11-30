@@ -28,7 +28,7 @@
                                 slot-value-using-class-body setf-slot-value-using-class-body
                                 enable-sharp-boolean-syntax standard-instance-access-form computed-state-p
                                 log.dribble log.debug log.info log.warn log.error
-                                cs-attached-p)"))))
+                                cs-attached-p cs-variable)"))))
 
 (enable-sharp-boolean-syntax)
 
@@ -317,17 +317,18 @@
   (clet ((a (compute-as 2))
          (object (make-instance 'computed-test
                                 :slot-a (compute-as (1+ a))
-                                :slot-b (compute-as (1+ (slot-a-of -self-)))))
-         (b (compute-as (+ a (slot-b-of object)))))
+                                :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= a 2))
-    (is (= b 6))
-    (is (= (slot-a-of object) 3))
-    (is (= (slot-b-of object) 4))
-    (setf (slot-a-of object) 42)
-    (is (= a 2))
-    (is (= b 45))
-    (is (= (slot-a-of object) 42))
-    (is (= (slot-b-of object) 43))))
+    (clet ((b (compute-as (+ a (slot-b-of object)))))
+      (is (= b 6))
+      (is (eq (cs-variable b-state) 'b))
+      (is (= (slot-a-of object) 3))
+      (is (= (slot-b-of object) 4))
+      (setf (slot-a-of object) 42)
+      (is (= a 2))
+      (is (= b 45))
+      (is (= (slot-a-of object) 42))
+      (is (= (slot-b-of object) 43)))))
 
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test

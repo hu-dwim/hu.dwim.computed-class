@@ -91,7 +91,7 @@
                   initform computed-in)
           (setf computed-in (first primitive-form)))
       ;; to enforce :kind 'object-slot. should it be an assert instead?
-      ;;(setf primitive-form (primitive-compute-as-form-with-ensured-kind primitive-form 'object-slot))
+      ;;(setf primitive-form (ensure-arguments-for-primitive-compute-as-form primitive-form :kind 'object-slot))
       )
     (apply #'call-next-method computed-slot-definition slot-names
            (append

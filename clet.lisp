@@ -43,8 +43,9 @@
                                            nil))))
     (setf vars (loop for (name definition) :in vars
                      collect (list name (if (compute-as-form-p definition)
-                                            (primitive-compute-as-form-with-ensured-kind (primitive-compute-as-form-of definition env)
-                                                                                         'variable)
+                                            (ensure-arguments-for-primitive-compute-as-form
+                                             (primitive-compute-as-form-of definition env)
+                                             :kind 'variable)
                                             definition))))
     ;; wrap the global computed-state-value accessors and do some extra work specific to handling variables
     `(locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
@@ -63,7 +64,7 @@
                           ,@(loop for (name definition) :in vars
                                   for var :in state-variables
                                   for state-name = (concatenate-symbol name "-state")
-                                  when var collect `(,state-name (,(concatenate-symbol "state-of-" name)))))
+                                  when var collect `(,state-name (,var))))
           ;; define the variables themselves
           (let* ,(loop for (name definition) :in vars
                        for var :in state-variables
@@ -71,17 +72,18 @@
                                    `(,var (aprog1
                                               ,definition
                                             (assert (eq (cs-kind it) 'variable))
-                                            (setf (cs-attached-p it) #t)))
+                                            (setf (cs-attached-p it) #t)
+                                            (setf (cs-variable it) ',name)))
                                    (list name definition)))
             (declare (ignorable ,@(remove-if #'null state-variables)))
-            ;; define reader and writer flet's that handle the access of the NAME-state variables
+            ;; define reader and writer flet's named by the gensym-ed variables. they will handle the read/write of the states
             (flet (,@(loop for (name nil) :in vars
                            for var :in state-variables
-                           when var collect `(,(concatenate-symbol "state-of-" name) ()
+                           when var collect `(,var ()
                                               ,var))
                    ,@(loop for (name nil) :in vars
                            for var :in state-variables
-                           when var collect `((setf ,(concatenate-symbol "state-of-" name)) (new-value)
+                           when var collect `((setf ,var) (new-value)
                                               (incf-pulse new-value)
                                               (setf (cs-attached-p ,var) #f)
                                               (setf (cs-attached-p new-value) #t)

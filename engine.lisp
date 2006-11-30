@@ -284,7 +284,10 @@
                  (return form))
             finally (error "Form ~S can not be macroexpanded into a primitive-compute-as-form-p. This should not happen." input-form))))
 
-(defun primitive-compute-as-form-with-ensured-kind (form kind)
-  `(,(first form) (:kind ,kind ,@(remove-keywords (second form) :kind))
-    ,@(cddr form)))
+(defun ensure-arguments-for-primitive-compute-as-form (form &rest args)
+  (let ((form-args (copy-list (second form))))
+    (loop for (indicator value) :on args :by #'cddr do
+          (setf (getf form-args indicator) value))
+    `(,(first form) ,form-args
+      ,@(cddr form))))
 
