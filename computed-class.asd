@@ -85,9 +85,6 @@
 
 (defmethod perform ((op test-op) (system (eql (find-system :computed-class))))
   (operate 'load-op :computed-class)
-  (in-package :computed-class-test)
-  (operate 'load-op :fiveam)
-  (use-package :5am)
   (operate 'load-op :computed-class-test)
   (funcall (read-from-string "5am:run!"))
   (values))

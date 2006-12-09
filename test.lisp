@@ -23,6 +23,7 @@
 (in-package :computed-class-test)
 
 (eval-always
+  (use-package :5am)
   (import (let ((*package* (find-package :computed-class)))
             (read-from-string "(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse
                                 slot-value-using-class-body setf-slot-value-using-class-body
@@ -386,26 +387,34 @@
 
 (test computed-class/timing/1
   (finishes
-    (flet ((measure (object)
+    (flet ((measure (object message)
              (setf (slot-a-of object) 0)
              #+sbcl(sb-ext:gc :full t)
+             (terpri *debug-io*)
+             (write-line message *debug-io*)
+             (terpri *debug-io*)
              (time
               (dotimes (counter 4000000)
                 (slot-b-of object)))))
-      (measure (make-instance 'standard-test))
+      (measure (make-instance 'standard-test) "Reader, no computation, standard accessor: ")
       (measure (make-instance 'computed-test
                               :slot-a (compute-as 0)
-                              :slot-b (compute-as (1+ (slot-a-of -self-))))))))
+                              :slot-b (compute-as (1+ (slot-a-of -self-))))
+               "Reader, no computation, computed accessor: "))))
 
 (test computed-class/timing/2
   (finishes
-    (flet ((measure (object)
+    (flet ((measure (object message)
              #+sbcl(sb-ext:gc :full t)
+             (terpri *debug-io*)
+             (write-line message *debug-io*)
+             (terpri *debug-io*)
              (time
               (dotimes (counter 1000000)
                 (setf (slot-a-of object) counter)
                 (slot-b-of object)))))
-      (measure (make-instance 'standard-test))
+      (measure (make-instance 'standard-test) "Setting and recomputation, standard accessor: ")
       (measure (make-instance 'computed-test
                               :slot-a (compute-as 0)
-                              :slot-b (compute-as (1+ (slot-a-of -self-))))))))
+                              :slot-b (compute-as (1+ (slot-a-of -self-))))
+               "Setting and recomputation, computed accessor: "))))
