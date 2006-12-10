@@ -34,20 +34,20 @@
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
-  (let ((verbose-compute-as-macro-name (concatenate-symbol compute-as-macro-name "*"))
+  (let ((primitive-compute-as-macro-name (concatenate-symbol compute-as-macro-name "*"))
         (docstring (strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
     `(eval-always
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
-      (setf (get ',compute-as-macro-name 'primitive-compute-as-macro) ',verbose-compute-as-macro-name)
+      (setf (get ',compute-as-macro-name 'primitive-compute-as-macro) ',primitive-compute-as-macro-name)
       
-      (setf (get ',verbose-compute-as-macro-name 'computed-as-macro-p) t)
-      (setf (get ',verbose-compute-as-macro-name 'primitive-compute-as-macro) ',verbose-compute-as-macro-name)
+      (setf (get ',primitive-compute-as-macro-name 'computed-as-macro-p) t)
+      (setf (get ',primitive-compute-as-macro-name 'primitive-compute-as-macro) ',primitive-compute-as-macro-name)
       
-      (unless (get ',verbose-compute-as-macro-name 'computed-universe)
-        (setf (get ',verbose-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-      (defmacro ,verbose-compute-as-macro-name ((&key (kind 'object-slot)) &body form)
+      (unless (get ',primitive-compute-as-macro-name 'computed-universe)
+        (setf (get ',primitive-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
+      (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot)) &body form)
         ,docstring
-        `(make-computed-state :universe (get ',',verbose-compute-as-macro-name 'computed-universe)
+        `(make-computed-state :universe (get ',',primitive-compute-as-macro-name 'computed-universe)
           #+debug :form #+debug ',form
           :compute-as (lambda (,@(when (eq kind 'object-slot)
                                        (list ',self-variable-name))
@@ -59,7 +59,7 @@
           :kind ',kind))
       (defmacro ,compute-as-macro-name (&body body)
         ,docstring
-        `(,',verbose-compute-as-macro-name ()
+        `(,',primitive-compute-as-macro-name ()
           ,@body)))))
 
 

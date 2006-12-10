@@ -386,35 +386,35 @@
     :initform 0)))
 
 (test computed-class/timing/1
-  (finishes
-    (flet ((measure (object message)
-             (setf (slot-a-of object) 0)
-             #+sbcl(sb-ext:gc :full t)
-             (terpri *debug-io*)
-             (write-line message *debug-io*)
-             (terpri *debug-io*)
-             (time
-              (dotimes (counter 4000000)
-                (slot-b-of object)))))
-      (measure (make-instance 'standard-test) "Reader, no computation, standard accessor: ")
-      (measure (make-instance 'computed-test
-                              :slot-a (compute-as 0)
-                              :slot-b (compute-as (1+ (slot-a-of -self-))))
-               "Reader, no computation, computed accessor: "))))
+  (flet ((measure (object message)
+           (setf (slot-a-of object) 0)
+           #+sbcl(sb-ext:gc :full t)
+           (terpri *debug-io*)
+           (write-line message *debug-io*)
+           (terpri *debug-io*)
+           (time
+            (dotimes (counter 4000000)
+              (slot-b-of object)))
+           (terpri *debug-io*)))
+    (measure (make-instance 'standard-test) "*** Reader, no computation, standard accessor: ")
+    (measure (make-instance 'computed-test
+                            :slot-a (compute-as 0)
+                            :slot-b (compute-as (1+ (slot-a-of -self-))))
+             "*** Reader, no computation, computed accessor: ")))
 
 (test computed-class/timing/2
-  (finishes
-    (flet ((measure (object message)
-             #+sbcl(sb-ext:gc :full t)
-             (terpri *debug-io*)
-             (write-line message *debug-io*)
-             (terpri *debug-io*)
-             (time
-              (dotimes (counter 1000000)
-                (setf (slot-a-of object) counter)
-                (slot-b-of object)))))
-      (measure (make-instance 'standard-test) "Setting and recomputation, standard accessor: ")
-      (measure (make-instance 'computed-test
-                              :slot-a (compute-as 0)
-                              :slot-b (compute-as (1+ (slot-a-of -self-))))
-               "Setting and recomputation, computed accessor: "))))
+  (flet ((measure (object message)
+           #+sbcl(sb-ext:gc :full t)
+           (terpri *debug-io*)
+           (write-line message *debug-io*)
+           (terpri *debug-io*)
+           (time
+            (dotimes (counter 1000000)
+              (setf (slot-a-of object) counter)
+              (slot-b-of object)))
+           (terpri *debug-io*)))
+    (measure (make-instance 'standard-test) "*** Reader, writer, no computation, standard accessor: ")
+    (measure (make-instance 'computed-test
+                            :slot-a (compute-as 0)
+                            :slot-b (compute-as (1+ (slot-a-of -self-))))
+             "*** Reader, writer, recomputation, computed accessor: ")))
