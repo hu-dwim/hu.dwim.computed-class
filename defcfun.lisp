@@ -26,7 +26,7 @@
 
 (defmacro defcfun (name args &body body)
   "Just like a defun, but assumes that the code executed in its body does not have any sideeffects and based on this assumption memoizes the computed return values. The memoized entries are dropped if any computed-state is invalidated that was read while calculating the memoize entry in question."
-  (destructuring-bind (name &key (memoize-test-fn 'equal) computed-in (maximum-cache-entries 10000)
+  (destructuring-bind (name &key (memoize-test-fn 'equal) computed-in maximum-cache-entries
                             (hash-table-factory 'make-hash-table))
       (ensure-list name)
     (assert computed-in (computed-in) "You need to specify with :computed-in which computed universe defcfun's are computed in.")
@@ -51,8 +51,13 @@
                           (unless ,state
                             (setf ,state (,primitive-compute-as-macro-name (:kind standalone)
                                                                            (multiple-value-list (progn ,@body))))
-                            (when (> (hash-table-count ,memoize-table) ,maximum-cache-entries)
-                              (clrhash ,memoize-table))
+                            ,(when maximum-cache-entries
+                                   `(when (> (hash-table-count ,memoize-table) ,maximum-cache-entries)
+                                     ;; PUNT: simply drop the entire cache when we go over the
+                                     ;; maximum-cache-entries limit
+                                     (loop for value being the hash-values of it do
+                                           (invalidate-computed-state value))
+                                     (clrhash ,memoize-table)))
                             (setf (gethash ,memoize-key ,memoize-table) ,state))
                           (values-list (computed-state-value ,state))))
                       ,memoize-table))))))))
