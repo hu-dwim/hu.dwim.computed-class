@@ -38,7 +38,7 @@
 (in-suite :computed-class)
 
 (define-computed-universe compute-as :name "Default computed-class-test universe")
-;; TODO make tests for (define-computed-universe separated-compute-as :name "Separated computed-class-test universe")
+(define-computed-universe separated-compute-as :name "Separated computed-class-test universe")
 
 ;;;;;;;;;;;;;;;;;;
 ;;; defclass tests
@@ -371,6 +371,95 @@
     (invalidate-computed-slot object 'slot-b)
     (signals error (slot-a-of object))
     (signals error (slot-b-of object))))
+
+
+;;;;;;;;;;;;;;;;;;
+;;; defcfun tests
+
+;; define some lexical variables, some of them are computed
+(clet ((words-to-be-uppercased (compute-as '()))
+       (integers-to-be-factorized (compute-as '()))
+       (irrelevant-variable (separated-compute-as nil))
+       (run-counter)
+       (memoize-table))
+
+  (setf memoize-table
+        (second (multiple-value-list
+                    ;; define a function that is using the computed lexical bindings that we will be
+                    ;; modifying in various ways in the test run and check the function's behaviour
+                    (defcfun (format* :computed-in compute-as) (datum &rest args)
+                      (incf run-counter)
+                      irrelevant-variable ; read a computed-state that is in another universe: should have no effect at all.
+                      (labels ((factorial (n)
+                                 (cond ((= n 1) 1)
+                                       (t (* n (factorial (- n 1)))))))
+                        (apply #'format nil datum
+                               (loop for arg in args
+                                     collect (cond ((and (stringp arg)
+                                                         (member arg words-to-be-uppercased :test #'string=))
+                                                    (string-upcase arg))
+                                                   ((and (integerp arg)
+                                                         (member arg integers-to-be-factorized :test #'eql))
+                                                    (factorial arg))
+                                                   (t arg)))))))))
+
+  ;; we need to tell 5am to compile the test body at definition time, so it can see the lexical bindings
+  (test (computed-class/defcfun/1 :compile-at :definition-time)
+
+    (setf run-counter 0)
+    (setf words-to-be-uppercased '())
+    (setf integers-to-be-factorized '())
+    
+    (let ((test-datum "~A-~A-~A")
+          (test-args (list "foo" "bar" 42)))
+      
+      (macrolet ((is* (expected)
+                   `(is (string= ,expected (apply 'format* test-datum test-args)))))
+        (is* "foo-bar-42")
+        (is (= run-counter 1))
+        (is* "foo-bar-42")
+        (is (= run-counter 1))
+
+        (setf irrelevant-variable 123)
+        (is* "foo-bar-42")
+        (is (= run-counter 1))
+
+        (push 1 integers-to-be-factorized)
+
+        (is* "foo-bar-42")
+        (is (= run-counter 2))
+        (is* "foo-bar-42")
+        (is (= run-counter 2))
+
+        (push "bar" words-to-be-uppercased)
+        (is* "foo-BAR-42")
+        (is (= run-counter 3))
+        (is* "foo-BAR-42")
+        (is (= run-counter 3))
+
+        (push 42 integers-to-be-factorized)
+        (is* "foo-BAR-1405006117752879898543142606244511569936384000000000")
+        (is (= run-counter 4))
+        (is* "foo-BAR-1405006117752879898543142606244511569936384000000000")
+        (is (= run-counter 4))
+
+        (dotimes (j 1000)
+          (dotimes (i 100)
+            ;; to test the speed without the memoize cache:
+            ;;(invalidate-computed-state integers-to-be-factorized-state)
+            (format* test-datum "foo" "bar" i)))
+
+        (is (= run-counter 103))
+        ;; to inspect the memoize-table:
+        ;;(break "The memoized-table is ~A" memoize-table)
+        (is (= (hash-table-count memoize-table) 100))))))
+
+(defcfun (fun-with-multiple-values :computed-in compute-as) (some arg &key key)
+  (values key arg some))
+
+(test (computed-class/defcfun/2)
+  (is (equal (list 3 2 1) (multiple-value-list (fun-with-multiple-values 1 2 :key 3)))))
+
 
 ;;;;;;;;;;;;;;;;
 ;;; Timing tests
