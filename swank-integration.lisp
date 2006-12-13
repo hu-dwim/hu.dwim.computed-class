@@ -38,8 +38,8 @@
           ((computed-state-p value)
            `(,(if (computed-state-valid-p value) "Valid: " "Invalid: ")
              (:value ,(cs-value value))
-             ", pulse: " (:value ,(cs-computed-at-pulse value))
-             ", " (:value ,value "the computed-state")
+             ,(strcat ", pulse: " (cs-computed-at-pulse value))
+             ", " (:value ,value "computed-state")
              " "
              (:action "[invalidate]" ,(lambda () (invalidate-computed-state value)))
              " "
