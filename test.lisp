@@ -185,7 +185,6 @@
     (is (= 5 (slot-a-of object-2)))
     (is (= 10 (slot-b-of object-2)))))
 
-;; TODO: send a bug report to SBCL's list
 (test computed-class/compute/4
   (setf (find-class 'sbcl-class-cache-computed-test) nil)
   (defclass sbcl-class-cache-computed-test ()
@@ -203,11 +202,8 @@
                                :slot-a (compute-as 1)
                                :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= 1 (slot-a-of object)))
-    ;; the next call does not call slot-value-using-class probably because of some accessor method cache?
     (is (= 2 (slot-b-of object)))
     (setf (slot-a-of object) 2)
-    ;; the next call does not call slot-value-using-class probably because of some accessor method cache?
-    ;; even slot-value does not call svuc?!
     (is (= 3 (slot-b-of object)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
