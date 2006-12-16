@@ -108,9 +108,13 @@
   (remf-keywords args :readers :writers)
   (apply #'call-next-method slot :computed-readers readers :computed-writers writers args))
 
-(defmethod direct-slot-definition-class ((class computed-class) &key initform (computed-in #f) &allow-other-keys)
-  (if (or computed-in
-          (compute-as-form-p initform))
+(defun needs-to-be-computed-direct-slot-p (slot-initargs)
+  (let ((initform (getf slot-initargs :initform)))
+    (or (getf slot-initargs :computed-in)
+        (compute-as-form-p initform))))
+
+(defmethod direct-slot-definition-class ((class computed-class) &rest slot-initargs)
+  (if (needs-to-be-computed-direct-slot-p slot-initargs)
       (find-class 'computed-direct-slot-definition)
       (call-next-method)))
 
@@ -121,18 +125,22 @@
       (call-next-method)))
 
 (defmethod effective-slot-definition-class ((class computed-class) &key &allow-other-keys)
-  (declare (special %computed-effective-slot-definition%))
-  (if %computed-effective-slot-definition%
-      (find-class 'computed-effective-slot-definition)
-      (call-next-method)))
+  (declare (special %effective-slot-definition-class%))
+  (aif %effective-slot-definition-class%
+       (find-class it)
+       (call-next-method)))
+
+(defun needs-to-be-computed-effective-slot-p (direct-slot-definitions)
+  (find-if (lambda (direct-slot-definition)
+             (typep direct-slot-definition 'computed-direct-slot-definition))
+           direct-slot-definitions))
 
 (defmethod compute-effective-slot-definition :around ((class computed-class) name direct-slot-definitions)
   (declare (type list direct-slot-definitions))
   ;; TODO: it is unclear what to do when the direct slot definitions have different computed-in specifications
-  (let ((%computed-effective-slot-definition% (find-if (lambda (direct-slot-definition)
-                                                         (typep direct-slot-definition 'computed-direct-slot-definition))
-                                                       direct-slot-definitions)))
-    (declare (special %computed-effective-slot-definition%))
+  (let ((%effective-slot-definition-class% (when (needs-to-be-computed-effective-slot-p direct-slot-definitions)
+                                             'computed-effective-slot-definition)))
+    (declare (special %effective-slot-definition-class%))
     (aprog1
         (call-next-method)
       ;; We collect and copy the readers and writers to the effective-slot, so we can access it
