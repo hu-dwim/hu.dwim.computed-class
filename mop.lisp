@@ -153,7 +153,11 @@
                                        appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
                                                      (computed-writers-of direct-slot-definition)
                                                      (slot-definition-writers direct-slot-definition)))
-                                 :test #'equal))))))
+                                 :test #'equal))
+        (when (typep it 'computed-direct-slot-definition-with-custom-accessors)
+          ;; ensure the generic functions early, so we avoid compile time warnings of undefined functions
+          (map nil 'ensure-generic-function-for-accessor (computed-readers-of it))
+          (map nil 'ensure-generic-function-for-accessor (computed-writers-of it)))))))
 
 (defmacro slot-value-using-class-body (object slot)
   (declare (type (or symbol effective-slot-definition) slot))
@@ -252,10 +256,13 @@
   (defparameter *kept-accessors* 0)
   (defparameter *new-accessors* 0))
 
+(defun ensure-generic-function-for-accessor (accessor-name type)
+  (ensure-generic-function accessor-name :lambda-list (ecase type
+                                                        (:reader '(object))
+                                                        (:writer '(new-value object)))))
+
 (defun ensure-accessor-for (class accessor-name effective-slot type)
-  (let* ((gf (ensure-generic-function accessor-name :lambda-list (ecase type
-                                                                   (:reader '(object))
-                                                                   (:writer '(new-value object)))))
+  (let* ((gf (ensure-generic-function-for-accessor accessor-name type))
          (specializers (ecase type
                          (:reader (list class))
                          (:writer (list (find-class 't) class))))
