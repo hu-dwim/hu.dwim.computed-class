@@ -38,10 +38,12 @@
           ((computed-state-p value)
            `(,(if (computed-state-valid-p value) "Valid: " "Invalid: ")
              (:value ,(cs-value value))
-             ,(strcat ", pulse: " (cs-computed-at-pulse value))
+             ,(strcat ", pulse: " (cs-computed-at-pulse value) "/" (cs-validated-at-pulse value))
              ", " (:value ,value ,(cu-name (cs-universe value)))
              " "
-             (:action "[invalidate]" ,(lambda () (invalidate-computed-state value)))
+             ,(if (computed-state-valid-p value)
+                  `(:action "[invalidate]" ,(lambda () (invalidate-computed-state value)))
+                  `(:action "[compute]" ,(lambda () (ensure-computed-state-is-valid value))))
              " "
              (:action "[make unbound]" ,(lambda () (slot-makunbound-using-class class object slot)))))
           (t (call-next-method)))))
