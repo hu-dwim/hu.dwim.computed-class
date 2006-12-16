@@ -110,7 +110,9 @@
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
     (in-recompute-state-contex context
-      (push computed-state (rsc-used-computed-states context))))
+      (when (eq (cs-universe (rsc-computed-state context))
+                (cs-universe computed-state))
+        (push computed-state (rsc-used-computed-states context)))))
   (ensure-computed-state-is-valid computed-state)
   (cs-value computed-state))
 

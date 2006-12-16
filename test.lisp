@@ -29,7 +29,7 @@
                                 slot-value-using-class-body setf-slot-value-using-class-body
                                 enable-sharp-boolean-syntax standard-instance-access-form computed-state-p
                                 log.dribble log.debug log.info log.warn log.error
-                                cs-attached-p cs-variable)"))))
+                                cs-attached-p cs-variable cs-depends-on)"))))
 
 (enable-sharp-boolean-syntax)
 
@@ -367,6 +367,21 @@
     (invalidate-computed-slot object 'slot-b)
     (signals error (slot-a-of object))
     (signals error (slot-b-of object))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; universe-separation tests
+
+(test computed-class/universe-separation/1
+  (clet ((a (compute-as 1))
+         (b (separated-compute-as (1+ a)))
+         (c (compute-as (+ a b))))
+    (is (= a 1))
+    (is (= c 3))
+    (setf a 42)
+    (is (= c 44))
+    (is (= 1 (length (cs-depends-on c-state))))
+    (is (= 0 (length (cs-depends-on b-state))))))
 
 
 ;;;;;;;;;;;;;;;;;;
