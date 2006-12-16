@@ -47,7 +47,8 @@
         (setf (get ',primitive-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
       (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot)) &body form)
         ,docstring
-        `(make-computed-state :universe (get ',',primitive-compute-as-macro-name 'computed-universe)
+        `(make-computed-state :universe (load-time-value
+                                         (get ',',primitive-compute-as-macro-name 'computed-universe))
           #+debug :form #+debug ',form
           :compute-as (lambda (,@(when (eq kind 'object-slot)
                                        (list ',self-variable-name))
