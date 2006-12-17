@@ -116,13 +116,6 @@
   (ensure-computed-state-is-valid computed-state)
   (cs-value computed-state))
 
-(defun (setf computation-of-computed-state) (new-value computed-state)
-  (declare (type computed-state computed-state)
-           (type function new-value)
-           #.(optimize-declaration))
-  (setf (cs-compute-as computed-state) new-value)
-  (invalidate-computed-state computed-state #t))
-
 (defun (setf computed-state-value) (new-value computed-state)
   "Set the value, invalidate and recalculate as needed."
   (declare (type computed-state computed-state)
@@ -132,6 +125,18 @@
     (setf (cs-computed-at-pulse computed-state) current-pulse)
     (setf (cs-validated-at-pulse computed-state) current-pulse)
     (setf (cs-value computed-state) new-value)))
+
+(defun computation-of-computed-state (computed-state)
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
+  (cs-compute-as computed-state))
+
+(defun (setf computation-of-computed-state) (new-value computed-state)
+  (declare (type computed-state computed-state)
+           (type function new-value)
+           #.(optimize-declaration))
+  (setf (cs-compute-as computed-state) new-value)
+  (invalidate-computed-state computed-state #t))
 
 (defun ensure-computed-state-is-valid (computed-state)
   (declare (type computed-state computed-state)

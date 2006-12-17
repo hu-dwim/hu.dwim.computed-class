@@ -53,6 +53,7 @@
         incf-pulse current-pulse
         computed-state-value (setf computed-state-value) primitive-p
         invalidate-computed-state computed-state-or-nil find-slot
+        computation-of-computed-state (setf computation-of-computed-state)
         standard-instance-access (setf standard-instance-access))))
 
 (defun file-header ()
