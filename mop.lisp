@@ -202,7 +202,7 @@
         (if (computed-state-p slot-value)
             (setf (computed-state-value slot-value) ,new-value)
             ;; by default unbound computed slots are initialized to be a computed slot, even when setting a constant in them.
-            (if (eq slot-value '#.+unbound-slot-value+)
+            (if (eq slot-value (load-time-value +unbound-slot-value+))
                 (setf-standard-instance-access-form (make-computed-state :universe
                                                                          ,(if (symbolp slot)
                                                                               `(get (computed-in-of ,slot) 'computed-universe)
@@ -238,13 +238,13 @@
                                     (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
   (not (eq (standard-instance-access-form object slot)
-           '#.+unbound-slot-value+)))
+           (load-time-value +unbound-slot-value+))))
 
 (defmethod slot-makunbound-using-class ((class computed-class)
                                         (object computed-object)
                                         (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  (setf-standard-instance-access-form '#.+unbound-slot-value+ object slot))
+  (setf-standard-instance-access-form (load-time-value +unbound-slot-value+) object slot))
 
 (defclass computed-accessor-method (standard-accessor-method)
   ((effective-slot
