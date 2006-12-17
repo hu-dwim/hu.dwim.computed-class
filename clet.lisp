@@ -65,12 +65,13 @@
 (defmacro clet (vars &body body &environment env)
   "A let* with extra semantics to handle computed variables. For now see the code and the test file for details.
    Available bindings in the body:
-     - (computed-state-for NAME) A macro to access the place itself that holds the computed state, so you can 
-       setf closed-over computed variables to new (compute-as ...) forms."
+     - NAME-state The place itself that holds the computed state, so you can 
+       read or setf closed-over computed variables to new (compute-as ...) forms."
   (let ((state-variables (loop for (name definition) :in vars
                                collect (if (compute-as-form-p definition)
                                            (gensym (string name))
-                                           nil))))
+                                           nil)))
+        (local-computed-state-value (gensym "COMPUTED-STATE-VALUE")))
     (setf vars (loop for (name definition) :in vars
                      collect (list name (if (compute-as-form-p definition)
                                             (ensure-arguments-for-primitive-compute-as-form
@@ -79,14 +80,17 @@
                                             definition))))
     ;; wrap the global computed-state-value accessors and do some extra work specific to handling variables
     `(locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
-      (flet (((setf computed-state-value) (new-value computed-state)
+      ;; let's define local gensymed versions of computed-state-value reader and writer
+      (flet ((,local-computed-state-value (computed-state)
+               (computed-state-value computed-state))
+             ((setf ,local-computed-state-value) (new-value computed-state)
                (declare #.(optimize-declaration))
                (assert (not (computed-state-p new-value)) ()
                        "You are setting a computed-state into a clet variable, you probably don't want to do that. Hint: (setf foo-state (compute-as 42)).")
                (setf (computed-state-value computed-state) new-value)))
         (symbol-macrolet (,@(loop for (name definition) :in vars
                                   for var :in state-variables
-                                  when var collect (list name `(computed-state-value ,var)))
+                                  when var collect (list name `(,local-computed-state-value ,var)))
                           ;; these are NAME-state definitions that expand to flet's that read/write
                           ;; the gensym-ed variables, so through them you can access the actual
                           ;; states directly (e.g. to set state variables captured by various
@@ -114,7 +118,7 @@
                    ,@(loop for (name nil) :in vars
                            for var :in state-variables
                            when var collect `((setf ,var) (new-value)
-                                              (incf-pulse new-value)
+                                              (incf-pulse ,var)
                                               (setf (cs-attached-p ,var) #f)
                                               (setf (cs-attached-p new-value) #t)
                                               (setf ,var new-value))))
