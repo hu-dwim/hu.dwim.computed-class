@@ -27,10 +27,40 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Standalone variables
 
-;; current limitations:
-;; - computed-let can only handle variables initialized with (compute-as ...) forms (can be fixed)
-;; - (computed-state-for NAME) works only on one level (probably not trivial to overcome this)
-;; - warnings/notes due to unused functions and optimization
+(macrolet ((definer (name definer-name)
+               `(defmacro ,name (name definition &optional (doc nil doc-p) &environment env)
+                 "defcvar and defcparameters are like their cl counterparts with one VERY IMPORT difference: they can only be used as a global, rebinding is not possible!"
+                 (let ((state-variable-name (concatenate-symbol "%" name "-state"))
+                       (state-accessor-name (concatenate-symbol name "-state")))
+                   (assert (compute-as-form-p definition) () "You must specify a compute-as form as definition for defcvar")
+                   `(progn
+                     ,,(when (eq definer-name 'defparameter)
+                             ``(when (and (boundp ',state-variable-name)
+                                      (computed-state-p ,state-variable-name))
+                                (incf-pulse ,state-variable-name)
+                                (setf (cs-attached-p ,state-variable-name) #f)))
+                     (,',definer-name ,state-variable-name
+                         (aprog1
+                             ,(ensure-arguments-for-primitive-compute-as-form
+                               (primitive-compute-as-form-of definition env)
+                               :kind 'variable)
+                           (setf (cs-attached-p it) #t)
+                           (setf (cs-variable it) ',name))
+                       ,@(when doc-p (list doc)))
+                     (define-symbol-macro ,name (computed-state-value ,state-variable-name))
+                     (define-symbol-macro ,state-accessor-name (,state-accessor-name))
+                     (declaim (inline ,state-accessor-name (setf ,state-accessor-name)))
+                     (handler-bind ((style-warning #'muffle-warning))
+                       (defun ,state-accessor-name ()
+                         ,state-variable-name)
+                       (defun (setf ,state-accessor-name) (new-value)
+                         (incf-pulse ,state-variable-name)
+                         (setf (cs-attached-p ,state-variable-name) #f)
+                         (setf (cs-attached-p new-value) #t)
+                         (setf ,state-variable-name new-value)))
+                     ',name)))))
+  (definer defcvar defvar)
+  (definer defcparameter defparameter))
 
 (defmacro clet (vars &body body &environment env)
   "A let* with extra semantics to handle computed variables. For now see the code and the test file for details.

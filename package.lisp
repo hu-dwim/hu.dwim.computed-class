@@ -36,6 +36,8 @@
            #:-current-value-
            #:make-slot-uncomputed
            #:clet
+           #:defcvar
+           #:defcparameter
            #:defcfun
            #:computed-state-value
            #:computation-of-computed-state)

@@ -327,6 +327,23 @@
       (is (= (slot-a-of object) 42))
       (is (= (slot-b-of object) 43)))))
 
+(test computed-class/clet-global/1
+  (defcparameter foo (compute-as 50))
+  
+  (clet ((a (compute-as (1+ foo)))
+         (object (make-instance 'computed-test
+                                :slot-a (compute-as (1+ a)))))
+    (is (= foo 50))
+    (is (= a 51))
+    (is (= (slot-a-of object) 52))
+    (is (eq (cs-variable foo-state) 'foo))
+    (let ((previous-state foo-state))
+      (setf foo-state (compute-as 1))
+      (is (not (eq previous-state foo-state)))
+      (is (= 2 a)))))
+
+
+
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test
                                 :slot-a (compute-as 1)
