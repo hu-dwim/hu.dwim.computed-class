@@ -27,27 +27,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Standalone variables
 
-(macrolet ((definer (name definer-name)
-               `(defmacro ,name (name definition &optional (doc nil doc-p) &environment env)
+(macrolet ((definer (toplevel-name definer-name)
+               `(defmacro ,toplevel-name (name definition &optional (doc nil doc-p) &environment env)
                  "defcvar and defcparameters are like their cl counterparts with one VERY IMPORT difference: they can only be used as a global, rebinding is not possible!"
+                 (assert (symbolp name))
                  (let ((state-variable-name (concatenate-symbol "%" name "-state"))
                        (state-accessor-name (concatenate-symbol name "-state")))
                    (assert (compute-as-form-p definition) () "You must specify a compute-as form as definition for defcvar")
                    `(progn
-                     ,,(when (eq definer-name 'defparameter)
-                             ``(when (and (boundp ',state-variable-name)
-                                      (computed-state-p ,state-variable-name))
-                                (incf-pulse ,state-variable-name)
-                                (setf (cs-attached-p ,state-variable-name) #f)))
                      (,',definer-name ,state-variable-name
-                         (aprog1
-                             ,(ensure-arguments-for-primitive-compute-as-form
-                               (primitive-compute-as-form-of definition env)
-                               :kind 'variable)
-                           (setf (cs-attached-p it) #t)
-                           (setf (cs-variable it) ',name))
+                         (let ((new-state ,(ensure-arguments-for-primitive-compute-as-form
+                                            (primitive-compute-as-form-of definition env)
+                                            :kind 'variable)))
+                           (aprog1
+                               (if (boundp ',state-variable-name)
+                                   (copy-place-independent-slots-of-computed-state new-state ,state-variable-name)
+                                   new-state)
+                             (setf (cs-variable it) ',name)))
                        ,@(when doc-p (list doc)))
-                     (define-symbol-macro ,name (computed-state-value ,state-variable-name))
+                     (define-symbol-macro ,name (%computed-state-value ,state-variable-name))
                      (define-symbol-macro ,state-accessor-name (,state-accessor-name))
                      (declaim (inline ,state-accessor-name (setf ,state-accessor-name)))
                      (handler-bind ((style-warning #'muffle-warning))
@@ -55,10 +53,9 @@
                          ,state-variable-name)
                        (defun (setf ,state-accessor-name) (new-value)
                          (incf-pulse ,state-variable-name)
-                         (setf (cs-attached-p ,state-variable-name) #f)
-                         (setf (cs-attached-p new-value) #t)
-                         (setf ,state-variable-name new-value)))
-                     ',name)))))
+                         (copy-place-independent-slots-of-computed-state new-value ,state-variable-name)
+                         new-value))
+                     (values))))))
   (definer defcvar defvar)
   (definer defcparameter defparameter))
 
@@ -82,12 +79,12 @@
     `(locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
       ;; let's define local gensymed versions of computed-state-value reader and writer
       (flet ((,local-computed-state-value (computed-state)
-               (computed-state-value computed-state))
+               (%computed-state-value computed-state))
              ((setf ,local-computed-state-value) (new-value computed-state)
                (declare #.(optimize-declaration))
                (assert (not (computed-state-p new-value)) ()
                        "You are setting a computed-state into a clet variable, you probably don't want to do that. Hint: (setf foo-state (compute-as 42)).")
-               (setf (computed-state-value computed-state) new-value)))
+               (setf (%computed-state-value computed-state) new-value)))
         (symbol-macrolet (,@(loop for (name definition) :in vars
                                   for var :in state-variables
                                   when var collect (list name `(,local-computed-state-value ,var)))
@@ -106,7 +103,6 @@
                                    `(,var (aprog1
                                               ,definition
                                             (assert (eq (cs-kind it) 'variable))
-                                            (setf (cs-attached-p it) #t)
                                             (setf (cs-variable it) ',name)))
                                    (list name definition)))
             (declare (ignorable ,@(remove-if #'null state-variables)))
@@ -119,9 +115,8 @@
                            for var :in state-variables
                            when var collect `((setf ,var) (new-value)
                                               (incf-pulse ,var)
-                                              (setf (cs-attached-p ,var) #f)
-                                              (setf (cs-attached-p new-value) #t)
-                                              (setf ,var new-value))))
+                                              (copy-place-independent-slots-of-computed-state new-value ,var)
+                                              new-value)))
               (declare #+sbcl(sb-ext:unmuffle-conditions))
               ,@body)))))))
 

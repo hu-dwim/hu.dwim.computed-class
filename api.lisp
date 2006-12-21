@@ -47,17 +47,18 @@
         (setf (get ',primitive-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
       (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot)) &body form)
         ,docstring
-        `(make-computed-state :universe (load-time-value
-                                         (get ',',primitive-compute-as-macro-name 'computed-universe))
-          #+debug :form #+debug ',form
-          :compute-as (lambda (,@(when (eq kind 'object-slot)
-                                       (list ',self-variable-name))
+        (let ((self-variable-name ',self-variable-name))
+          (unless (eq kind 'object-slot)
+            (setf self-variable-name (gensym)))
+          `(make-computed-state :universe (load-time-value
+                                           (get ',',primitive-compute-as-macro-name 'computed-universe))
+            #+debug :form #+debug ',form
+            :compute-as (lambda (,self-variable-name
                                  ,',current-value-variable-name)
-                        (declare (ignorable ,@(when (eq kind 'object-slot)
-                                                    (list ',self-variable-name))
-                                            ,',current-value-variable-name))
-                        ,@form)
-          :kind ',kind))
+                          (declare (ignorable ,self-variable-name
+                                              ,',current-value-variable-name))
+                          ,@form)
+            :kind ',kind)))
       (defmacro ,compute-as-macro-name (&body body)
         ,docstring
         `(,',primitive-compute-as-macro-name ()

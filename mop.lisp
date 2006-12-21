@@ -177,12 +177,8 @@
                          (slot-definition-name slot))
              :instance ,object))
     (if (computed-state-p slot-value)
-        (computed-state-value slot-value)
+        (%computed-state-value slot-value)
         slot-value)))
-
-(debug-only
-  (defparameter *detached-computed-state-count* 0
-    "When in debug mode, it holds the computed states that have been detached from their original place (i.e. by make-slot-uncomputed)."))
 
 (defmacro setf-slot-value-using-class-body (new-value object slot)
   (declare (type (or symbol effective-slot-definition) slot))
@@ -190,17 +186,19 @@
     ;; an equivalent cond is compiled into considerably slower code on sbcl (?!).
     (if (computed-state-p ,new-value)
         (progn
-          (assert (eq (cs-kind ,new-value) 'object-slot) () "Trying to set a computed state into a slot with kind ~S" (cs-kind ,new-value))
-          (when (computed-state-p slot-value)
-            (setf (cs-attached-p slot-value) #f)
-            (debug-only (incf *detached-computed-state-count*)))
-          (setf (cs-attached-p ,new-value) #t)
-          (setf (cs-object ,new-value) ,object)
-          (setf (cs-slot ,new-value) ,slot)
-          (invalidate-computed-state ,new-value)
-          (setf-standard-instance-access-form ,new-value ,object ,slot))
+          (unless (eq (cs-kind ,new-value) 'object-slot)
+            (error "Trying to set the computed-state ~A into an object slot (wrong kind)" ,new-value))
+          (if (computed-state-p slot-value)
+              (copy-place-independent-slots-of-computed-state ,new-value slot-value)
+              (progn
+                (setf slot-value new-value)
+                (setf (cs-object ,new-value) ,object)
+                (setf (cs-slot ,new-value) ,slot)
+                (setf-standard-instance-access-form slot-value ,object ,slot)))
+          (invalidate-computed-state slot-value)
+          slot-value)
         (if (computed-state-p slot-value)
-            (setf (computed-state-value slot-value) ,new-value)
+            (setf (%computed-state-value slot-value) ,new-value)
             ;; by default unbound computed slots are initialized to be a computed slot, even when setting a constant in them.
             (if (eq slot-value (load-time-value +unbound-slot-value+))
                 (setf-standard-instance-access-form (make-computed-state :universe
@@ -210,15 +208,13 @@
                                                                          #+debug :form #+debug ,new-value
                                                                          :compute-as (constantly ,new-value)
                                                                          :kind 'object-slot
-                                                                         :attached-p #t
                                                                          :object ,object
                                                                          :slot ,slot)
                                                     ,object
                                                     ,slot)
                 ;; there was a non-computed-state in the slot and we are setting a non-computed-state
                 ;; new-value: keep the slot uncomputed.
-                (setf-standard-instance-access-form ,new-value ,object ,slot))))
-    new-value))
+                (setf-standard-instance-access-form ,new-value ,object ,slot))))))
 
 (defmethod slot-value-using-class ((class computed-class)
                                    (object computed-object)

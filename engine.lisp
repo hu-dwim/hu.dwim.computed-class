@@ -70,7 +70,7 @@
           :type list) ; of computed-state's
   (compute-as
    nil
-   :type function)
+   :type (or null function)) ; direct values have nil compute-as
   #+debug(form
           nil
           :type (or atom list))
@@ -90,10 +90,26 @@
    :type (or null computed-effective-slot-definition))
   (value
    nil
-   :type t)
-  (attached-p
-   #f
-   :type boolean))
+   :type t))
+
+(defun copy-place-independent-slots-of-computed-state (from into)
+  "Copy the slots of FROM into INTO that are not dependent on the place this computed slot has been assigned to."
+  (declare (type computed-state from into))
+  (macrolet ((x (&rest names)
+               `(progn
+                 ,@(loop for name :in names
+                         for accessor = (concatenate-symbol (find-package :computed-class) ; *package* is not ok, because due to inlining it may get expanded in a different package
+                                                            "cs-" name)
+                         collect `(setf (,accessor into) (,accessor from))))))
+    (x universe
+       computed-at-pulse
+       validated-at-pulse
+       depends-on
+       #+debug depending-on-me
+       compute-as
+       #+debug form
+       value)
+    (values)))
 
 (define-dynamic-context recompute-state-contex
   ((computed-state nil
@@ -104,8 +120,23 @@
   :create-struct #t
   :struct-options ((:conc-name rsc-)))
 
+
 (defun computed-state-value (computed-state)
   "Read the value, recalculate when needed."
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
+  (%computed-state-value computed-state))
+
+(defun (setf computed-state-value) (new-value computed-state)
+  "Set the value, invalidate and recalculate as needed."
+  (declare (type computed-state computed-state)
+           #.(optimize-declaration))
+  (unless (eq (cs-kind computed-state) 'standalone)
+    (error "You may only call (setf computed-state-value) on standalone computed-state's and ~A is not one" computed-state))
+  (setf (%computed-state-value computed-state) new-value)
+  (setf (cs-compute-as computed-state) nil))
+
+(defun %computed-state-value (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
@@ -116,8 +147,7 @@
   (ensure-computed-state-is-valid computed-state)
   (cs-value computed-state))
 
-(defun (setf computed-state-value) (new-value computed-state)
-  "Set the value, invalidate and recalculate as needed."
+(defun (setf %computed-state-value) (new-value computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (let ((current-pulse (incf-pulse computed-state)))
@@ -157,9 +187,10 @@
     (in-recompute-state-contex context
       (log.debug "Recomputing slot ~A" computed-state)
       (let* ((old-value (cs-value computed-state))
-             (new-value (if (eq (cs-kind computed-state) 'object-slot)
-                            (funcall (cs-compute-as computed-state) (cs-object computed-state) old-value)
-                            (funcall (cs-compute-as computed-state) old-value)))
+             (new-value (aif (cs-compute-as computed-state)
+                             (funcall it (cs-object computed-state) old-value)
+                             (error "Now, this is bad: we encoutered an invalid computed-state ~A which is holding a constant and therefore has no compute-as lambda"
+                                    computed-state)))
              (store-new-value-p (if (and (primitive-p old-value)
                                          (primitive-p new-value))
                                     (not (equal old-value new-value))
@@ -186,9 +217,7 @@
         (block valid-check
           (when (= (current-pulse computed-state) validated-at-pulse)
             (return-from valid-check (values #t nil)))
-          (when (or (= computed-at-pulse #.+invalid-pulse+)
-                    (and (not (eq (cs-kind computed-state) 'standalone))
-                         (not (cs-attached-p computed-state))))
+          (when (= computed-at-pulse #.+invalid-pulse+)
             (return-from valid-check (values #f computed-state)))
           (loop for depends-on-computed-state :in (cs-depends-on computed-state) do
                 (log.debug "Comparing ~A to ~A" computed-state depends-on-computed-state)
@@ -233,15 +262,13 @@
 (defun print-computed-state (computed-state stream)
   (declare (type computed-state computed-state))
   (let* ((name (if (eq (cs-kind computed-state) 'object-slot)
-                   (slot-definition-name (cs-slot computed-state))
-                   (cs-variable computed-state)))
-         (attached-p (if (cs-attached-p computed-state)
-                         "#t"
-                         "#f")))
+                   (awhen (cs-slot computed-state)
+                     (slot-definition-name it))
+                   (cs-variable computed-state))))
     (when (eq (cs-kind computed-state) 'object-slot)
       (format stream "~A / " (cs-object computed-state)))
-    (format stream "<#~A :pulse ~A :value ~A :kind ~A :attached ~A>"
-            name (cs-computed-at-pulse computed-state) (cs-value computed-state) (cs-kind computed-state) attached-p)))
+    (format stream "<#~A :pulse ~A :value ~A :kind ~A>"
+            name (cs-computed-at-pulse computed-state) (cs-value computed-state) (cs-kind computed-state))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;; Helper methods

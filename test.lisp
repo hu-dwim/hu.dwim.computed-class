@@ -29,7 +29,7 @@
                                 slot-value-using-class-body setf-slot-value-using-class-body
                                 enable-sharp-boolean-syntax standard-instance-access-form computed-state-p
                                 log.dribble log.debug log.info log.warn log.error
-                                cs-attached-p cs-variable cs-depends-on)"))))
+                                cs-kind cs-variable cs-depends-on)"))))
 
 (enable-sharp-boolean-syntax)
 
@@ -253,14 +253,14 @@
   (clet ((a (compute-as 1))
          (b (compute-as (1+ a)))
          (c (compute-as (+ a b))))
+    (is (eq 'variable (cs-kind a-state)))
     (is (= c 3))
     (setf a 2)
     (is (= c 5))
     (signals error (setf a (compute-as 42))) ; this is not the way to do it
     (let ((old-a-state a-state))
-      (is (cs-attached-p old-a-state))
       (setf a-state (compute-as 42))    ; this setf also invalidates the state of 'b' and 'c'
-      (is (not (cs-attached-p old-a-state))))
+      (is (eq a-state old-a-state)))    ; should keep its identity
     (is (= c 85))
     (setf a 43)
     (is (= c 87))))
@@ -327,8 +327,14 @@
       (is (= (slot-a-of object) 42))
       (is (= (slot-b-of object) 43)))))
 
-(test computed-class/clet-global/1
-  (defcparameter foo (compute-as 50))
+#|
+
+dragons be here :)
+
+(defcparameter foo (compute-as 50)) ;; we must define it on toplevel once, so the resulting symbol will be dynamic
+
+(test (computed-class/clet-global/1 :compile-at :definition-time)
+  (setf foo (compute-as 50))
   
   (clet ((a (compute-as (1+ foo)))
          (object (make-instance 'computed-test
@@ -341,8 +347,7 @@
       (setf foo-state (compute-as 1))
       (is (not (eq previous-state foo-state)))
       (is (= 2 a)))))
-
-
+|#
 
 (test computed-class/pulse/1
   (let* ((object (make-instance 'computed-test

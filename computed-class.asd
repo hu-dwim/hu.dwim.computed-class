@@ -88,6 +88,7 @@
   (operate 'load-op :computed-class)
   (operate 'load-op :computed-class-test)
   (funcall (read-from-string "5am:run!"))
+  (in-package :computed-class-test)
   (values))
 
 (defmethod operation-done-p ((op test-op) (system (eql (find-system :computed-class))))
