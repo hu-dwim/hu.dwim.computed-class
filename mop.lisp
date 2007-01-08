@@ -172,9 +172,9 @@
   `(let ((slot-value (standard-instance-access-form ,object ,slot)))
     (when (eq slot-value ',+unbound-slot-value+)
       (error 'unbound-slot
-             :name ',(if (symbolp slot)
-                         `(slot-definition-name ,slot)
-                         (slot-definition-name slot))
+             :name ,(if (symbolp slot)
+                        `(slot-definition-name ,slot)
+                        '(slot-definition-name slot))
              :instance ,object))
     (if (computed-state-p slot-value)
         (%computed-state-value slot-value)
