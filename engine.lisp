@@ -247,9 +247,10 @@
             do (let ((parent-computed-state (rsc-computed-state parent-context)))
                  (when (eq computed-state parent-computed-state)
                    (error "Circularity detected among the computed slots/variables ~A"
-                          (loop for parent-context = context :then (rsc-parent-context parent-context)
-                                while parent-context
-                                collect (rsc-computed-state parent-context)))))))))
+                          (append (list computed-state)
+                                  (loop for parent-context = context :then (rsc-parent-context parent-context)
+                                        while parent-context
+                                        collect (rsc-computed-state parent-context))))))))))
 
 (defun invalidate-computed-state (computed-state &optional locally)
   "Invalidate the given COMPUTED-STATE. When LOCALLY is #t then this invalidation has only local effects on this computed-state and the dependent computed-states are not invalidated."
