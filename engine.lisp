@@ -283,7 +283,9 @@
   (declare (type standard-class class)
            (type symbol slot-name)
            #.(optimize-declaration))
-  (find slot-name (the list (class-slots class)) :key #'slot-definition-name :test #'eq))
+  (let ((slot (find slot-name (the list (class-slots class)) :key #'slot-definition-name :test #'eq)))
+    (assert slot () "Slot ~S not found in class ~S" slot-name class)
+    slot))
 
 (defun computed-state-or-nil (object slot)
   (declare (type (or symbol computed-object) object)
