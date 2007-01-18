@@ -76,7 +76,7 @@
 
 (defsystem :computed-class-test
   :description "Tests for the computed-class system."
-  :depends-on (:computed-class :fiveam)
+  :depends-on (:computed-class :stefil)
   :components
   ((:file "test")))
 
@@ -87,7 +87,9 @@
 (defmethod perform ((op test-op) (system (eql (find-system :computed-class))))
   (operate 'load-op :computed-class)
   (operate 'load-op :computed-class-test)
-  (funcall (read-from-string "5am:run!"))
+  (format t "The result of (computed-class-test::computed-class) is:~%~%  ~A~%~%~
+             For more details run from the repl and use the customized Slime inspector to inspect the results.~%"
+          (funcall (read-from-string "computed-class-test::computed-class")))
   (in-package :computed-class-test)
   (values))
 

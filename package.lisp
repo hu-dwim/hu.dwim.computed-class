@@ -49,9 +49,6 @@
            #:recompute-slot
            #:recompute-computed-state))
 
-(defpackage :computed-class-test
-  (:use :cl :computed-class :closer-mop :arnesi))
-
 (in-package :computed-class)
 
 (deflogger log ()
