@@ -27,6 +27,21 @@
 ;;;;;;;;;;;;;;;;;;;;
 ;;; Public interface
 
+(defmacro defcclass (name superclasses slots &rest options)
+  `(defclass ,name ,superclasses , slots
+    ,@(append (unless (find :metaclass options :key 'first)
+                '((:metaclass computed-class)))
+              options)))
+
+(defmacro defcclass* (name superclasses slots &rest options)
+  `(,(aif (find-package :defclass-star)
+          (intern "DEFCLASS*" it)
+          (error "load defclass-star first"))
+    ,name ,superclasses , slots
+    ,@(append (unless (find :metaclass options :key 'first)
+                '((:metaclass computed-class)))
+              options)))
+
 (defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
                                                                        (format nil "~S" compute-as-macro-name)))
                                                           (self-variable-name '-self-)
@@ -102,7 +117,3 @@
                  (if (slot-boundp-using-class (class-of object) object slot)
                      (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)
                      (slot-unbound (class-of object) object (slot-definition-name slot)))))))
-
-
-
-
