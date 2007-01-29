@@ -70,7 +70,7 @@
           :type list) ; of computed-state's
   (compute-as
    nil
-   :type (or null function)) ; direct values have nil compute-as
+   :type (or null symbol function)) ; direct values have nil compute-as
   #+debug(form
           nil
           :type (or atom list))
