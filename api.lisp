@@ -35,12 +35,16 @@
 
 (defmacro defcclass* (name superclasses slots &rest options)
   `(,(aif (find-package :defclass-star)
-          (intern "DEFCLASS*" it)
+          (find-symbol "DEFCLASS*" it)
           (error "load defclass-star first"))
     ,name ,superclasses , slots
     ,@(append (unless (find :metaclass options :key 'first)
                 '((:metaclass computed-class)))
               options)))
+
+(eval-always
+  (aif (find-package :defclass-star)
+       (pushnew :compute-as (symbol-value (find-symbol "*ALLOWED-SLOT-DEFINITION-PROPERTIES*" it)))))
 
 (defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
                                                                        (format nil "~S" compute-as-macro-name)))
