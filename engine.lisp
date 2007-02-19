@@ -77,6 +77,10 @@
   (kind
    'standalone
    :type (member standalone object-slot variable))
+  (recomputation-mode
+   'on-demand
+   ;; TODO: add keep-up-to-date
+   :type (member always on-demand))
   ;; contains the name of the variable
   (variable
    nil
@@ -210,32 +214,34 @@
 (defun computed-state-valid-p (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
-  (let ((computed-at-pulse (cs-computed-at-pulse computed-state))
-        (validated-at-pulse (cs-validated-at-pulse computed-state)))
-    (log.debug "Validating ~A" computed-state)
-    (multiple-value-bind (valid-p newer-computed-state)
-        (block valid-check
-          (when (= (current-pulse computed-state) validated-at-pulse)
-            (return-from valid-check (values #t nil)))
-          (when (= computed-at-pulse #.+invalid-pulse+)
-            (return-from valid-check (values #f computed-state)))
-          (loop for depends-on-computed-state :in (cs-depends-on computed-state) do
-                (log.debug "Comparing ~A to ~A" computed-state depends-on-computed-state)
-                (if (>= computed-at-pulse (cs-computed-at-pulse depends-on-computed-state))
-                    (multiple-value-bind (valid-p newer-computed-state)
-                        (computed-state-valid-p depends-on-computed-state)
-                      (unless valid-p
-                        (return-from valid-check (values #f newer-computed-state))))
-                    (return-from valid-check (values #f depends-on-computed-state))))
-          (values #t nil))
-      (declare (type boolean valid-p)
-               (type (or null computed-state) newer-computed-state))
-      (if valid-p
-          (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state))
-          (progn
-            (log.debug "Value turned out to be invalid for ~A" computed-state)
-            (invalidate-computed-state computed-state #t)))
-      (values valid-p newer-computed-state)))))
+  (if (eq 'always (cs-recomputation-mode computed-state))
+      (values false computed-state)
+      (let ((computed-at-pulse (cs-computed-at-pulse computed-state))
+            (validated-at-pulse (cs-validated-at-pulse computed-state)))
+        (log.debug "Validating ~A" computed-state)
+        (multiple-value-bind (valid-p newer-computed-state)
+            (block valid-check
+              (when (= (current-pulse computed-state) validated-at-pulse)
+                (return-from valid-check (values #t nil)))
+              (when (= computed-at-pulse #.+invalid-pulse+)
+                (return-from valid-check (values #f computed-state)))
+              (loop for depends-on-computed-state :in (cs-depends-on computed-state) do
+                    (log.debug "Comparing ~A to ~A" computed-state depends-on-computed-state)
+                    (if (>= computed-at-pulse (cs-computed-at-pulse depends-on-computed-state))
+                        (multiple-value-bind (valid-p newer-computed-state)
+                            (computed-state-valid-p depends-on-computed-state)
+                          (unless valid-p
+                            (return-from valid-check (values #f newer-computed-state))))
+                        (return-from valid-check (values #f depends-on-computed-state))))
+              (values #t nil))
+          (declare (type boolean valid-p)
+                   (type (or null computed-state) newer-computed-state))
+          (if valid-p
+              (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state))
+              (progn
+                (log.debug "Value turned out to be invalid for ~A" computed-state)
+                (invalidate-computed-state computed-state #t)))
+          (values valid-p newer-computed-state))))))
 
 (defun check-circularity (computed-state)
   (declare (type computed-state computed-state)

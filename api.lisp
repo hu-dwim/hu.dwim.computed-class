@@ -48,6 +48,7 @@
 
 (defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
                                                                        (format nil "~S" compute-as-macro-name)))
+                                                          (default-recomputation-mode 'on-demand)
                                                           (self-variable-name '-self-)
                                                           (current-value-variable-name '-current-value-))
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
@@ -64,13 +65,14 @@
       
       (unless (get ',primitive-compute-as-macro-name 'computed-universe)
         (setf (get ',primitive-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-      (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot)) &body form)
+      (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode)) &body form)
         ,docstring
         (let ((self-variable-name ',self-variable-name))
           (unless (eq kind 'object-slot)
             (setf self-variable-name (gensym)))
           `(make-computed-state :universe (load-time-value
                                            (get ',',primitive-compute-as-macro-name 'computed-universe))
+            :recomputation-mode ',recomputation-mode
             #+debug :form #+debug ',form
             :compute-as (lambda (,self-variable-name
                                  ,',current-value-variable-name)
