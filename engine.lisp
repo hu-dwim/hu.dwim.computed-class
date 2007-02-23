@@ -157,6 +157,8 @@
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (let ((current-pulse (incf-pulse computed-state)))
+    ;; setting cs-depends-on to nil effectively makes it uncomputed, but other computed-state's can still depend on it
+    ;; and get invalidated when the value is updated.
     (setf (cs-depends-on computed-state) nil)
     (setf (cs-computed-at-pulse computed-state) current-pulse)
     (setf (cs-validated-at-pulse computed-state) current-pulse)

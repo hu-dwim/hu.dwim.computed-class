@@ -198,6 +198,8 @@
           (invalidate-computed-state slot-value)
           slot-value)
         (if (computed-state-p slot-value)
+            ;; it also clears the dependency list, making it basically an uncomputed slot. but this slot will still be recorded
+            ;; in dependencies and invalidate its dependencies when it gets updated. (c-in in Cells)
             (setf (%computed-state-value slot-value) ,new-value)
             ;; by default unbound computed slots are initialized to be a computed slot, even when setting a constant in them.
             (if (eq slot-value (load-time-value +unbound-slot-value+))

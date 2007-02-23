@@ -178,6 +178,7 @@
     (is (= 2 (slot-b-of object-2)))
     (setf (slot-a-of object-1) 2)
     (setf (slot-b-of object-2) (compute-as (* 2 (slot-a-of -self-))))
+    (is (= 2 (slot-a-of object-1)))
     (is (= 5 (slot-a-of object-2)))
     (is (= 10 (slot-b-of object-2)))))
 
