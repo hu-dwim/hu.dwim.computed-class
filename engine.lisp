@@ -297,7 +297,7 @@
     slot))
 
 (defun computed-state-or-nil (object slot)
-  (declare (type (or symbol computed-object) object)
+  (declare (type computed-object object)
            (type computed-effective-slot-definition slot)
            #.(optimize-declaration))
   (the (or null computed-state)
