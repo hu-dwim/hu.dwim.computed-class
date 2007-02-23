@@ -78,9 +78,9 @@
    'standalone
    :type (member standalone object-slot variable))
   (recomputation-mode
-   'on-demand
+   :on-demand
    ;; TODO: add keep-up-to-date
-   :type (member always on-demand))
+   :type (member :always :on-demand))
   ;; contains the name of the variable
   (variable
    nil
@@ -117,9 +117,9 @@
 
 (define-dynamic-context recompute-state-contex
   ((computed-state nil
-    :type computed-state)
+    :type computed-state) ; "The computed-state being recomputed."
    (used-computed-states nil
-    :type list))
+    :type list)) ; "The computed-states used while recomputing COMPUTED-STATE."
   :chain-parents #t
   :create-struct #t
   :struct-options ((:conc-name rsc-)))
@@ -145,9 +145,11 @@
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
     (in-recompute-state-contex context
-      (when (eq (cs-universe (rsc-computed-state context))
-                (cs-universe computed-state))
-        (push computed-state (rsc-used-computed-states context)))))
+      (let ((computed-state-being-recomputed (rsc-computed-state context)))
+        (when (and (not (eq :always (cs-recomputation-mode computed-state-being-recomputed)))
+                   (eq (cs-universe computed-state-being-recomputed)
+                       (cs-universe computed-state)))
+          (push computed-state (rsc-used-computed-states context))))))
   (ensure-computed-state-is-valid computed-state)
   (cs-value computed-state))
 
@@ -214,8 +216,8 @@
 (defun computed-state-valid-p (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
-  (if (eq 'always (cs-recomputation-mode computed-state))
-      (values false computed-state)
+  (if (eq :always (cs-recomputation-mode computed-state))
+      (values #f computed-state)
       (let ((computed-at-pulse (cs-computed-at-pulse computed-state))
             (validated-at-pulse (cs-validated-at-pulse computed-state)))
         (log.debug "Validating ~A" computed-state)

@@ -37,9 +37,7 @@
 
 (enable-sharp-boolean-syntax)
 
-(defsuite computed-class)
-
-(in-suite computed-class)
+(defsuite* test)
 
 (define-computed-universe compute-as :name "Default computed-class-test universe")
 (define-computed-universe separated-compute-as :name "Separated computed-class-test universe")
@@ -203,6 +201,44 @@
     (is (= 2 (slot-b-of object)))
     (setf (slot-a-of object) 2)
     (is (= 3 (slot-b-of object)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; always recomputed stuff
+
+(defparameter *always-compute-global-counter* 0)
+
+(deftest always-compute-with-object ()
+  (setf *always-compute-global-counter* 0)
+  (let* ((object (make-instance 'computed-test
+                               :slot-a (compute-as* (:recomputation-mode :always)
+                                         (slot-b-of -self-) ; read a slot to check later that we don't depend on it
+                                         (incf *always-compute-global-counter*))
+                               :slot-b (compute-as 42)))
+         (slot-a-state (computed-state-or-nil object (find-slot (find-class 'computed-test) 'slot-a))))
+    (is (not (null slot-a-state)))
+    (is (= (slot-a-of object) 1))
+    (is (= *always-compute-global-counter* 1))
+
+    (is (= (slot-a-of object) 2))
+    (is (= *always-compute-global-counter* 2))
+
+    (is (null (cs-depends-on slot-a-state)))))
+
+(deftest always-compute-with-clet ()
+  (setf *always-compute-global-counter* 0)
+  (clet ((a (compute-as 42))
+         (b (compute-as* (:recomputation-mode :always)
+              (format nil "~A" a)                       ; read a var to check later that we don't depend on it
+              (incf *always-compute-global-counter*))))
+    (is (= a 42))
+    (is (= b 1))
+    (is (= *always-compute-global-counter* 1))
+
+    (is (= a 42))
+    (is (= b 2))
+    (is (= *always-compute-global-counter* 2))
+
+    (is (null (cs-depends-on b-state)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Reconfiguration tests

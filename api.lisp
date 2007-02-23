@@ -48,7 +48,7 @@
 
 (defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
                                                                        (format nil "~S" compute-as-macro-name)))
-                                                          (default-recomputation-mode 'on-demand)
+                                                          (default-recomputation-mode :on-demand)
                                                           (self-variable-name '-self-)
                                                           (current-value-variable-name '-current-value-))
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
