@@ -135,7 +135,7 @@
              (typep direct-slot-definition 'computed-direct-slot-definition))
            direct-slot-definitions))
 
-(defmethod compute-effective-slot-definition :around ((class computed-class) name direct-slot-definitions)
+(defmethod compute-effective-slot-definition ((class computed-class) name direct-slot-definitions)
   (declare (type list direct-slot-definitions))
   ;; TODO: it is unclear what to do when the direct slot definitions have different computed-in specifications
   (let ((%effective-slot-definition-class% (when (needs-to-be-computed-effective-slot-p direct-slot-definitions)
