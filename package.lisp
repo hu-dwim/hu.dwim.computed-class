@@ -30,7 +30,6 @@
   (:use :cl :closer-mop :arnesi :computed-class-system)
 
   (:export #:defcclass
-           #:defcclass*
            #:computed-class
            #:computed-class*
            #:define-computed-universe
