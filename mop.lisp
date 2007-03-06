@@ -173,7 +173,7 @@
     (when (eq slot-value ',+unbound-slot-value+)
       (error 'unbound-slot
              :name ,(if (symbolp slot)
-                        `(slot-definition-name ',slot)
+                        `(slot-definition-name ,slot)
                         `(quote ,(slot-definition-name slot)))
              :instance ,object))
     (if (computed-state-p slot-value)
