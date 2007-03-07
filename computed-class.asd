@@ -89,7 +89,7 @@
   (operate 'load-op :computed-class-test)
   (let ((results (funcall (read-from-string "computed-class-test::test"))))
     (format t "The result of (computed-class-test::computed-class) is:~%~%  ~A~%~%~
-             For more details run from the repl and use the customized Slime inspector to inspect the results.~%"
+               For more details run from the repl and use the customized Slime inspector to inspect the results.~%"
             results)
     (in-package :computed-class-test)
     results))

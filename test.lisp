@@ -37,6 +37,8 @@
 
 (enable-sharp-boolean-syntax)
 
+(in-root-suite)
+
 (defsuite* test)
 
 (define-computed-universe compute-as :name "Default computed-class-test universe")
