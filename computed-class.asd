@@ -87,12 +87,8 @@
 (defmethod perform ((op test-op) (system (eql (find-system :computed-class))))
   (operate 'load-op :computed-class)
   (operate 'load-op :computed-class-test)
-  (let ((results (funcall (read-from-string "computed-class-test::test"))))
-    (format t "The result of (computed-class-test::computed-class) is:~%~%  ~A~%~%~
-               For more details run from the repl and use the customized Slime inspector to inspect the results.~%"
-            results)
-    (in-package :computed-class-test)
-    results))
+  (in-package :computed-class-test)
+  (eval (read-from-string "(stefil:funcall-test-with-feedback-message 'test)")))
 
 (defmethod operation-done-p ((op test-op) (system (eql (find-system :computed-class))))
   nil)
