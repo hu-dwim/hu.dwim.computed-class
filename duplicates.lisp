@@ -70,12 +70,11 @@
         (intern symbol-name))))
 
 ;; from metabang-bind
-(defvar *defclass-macro-name-for-dynamic-context* 'defclass)
 (defmacro define-dynamic-context (name direct-slots &key direct-superclasses
                                        export-symbols (class-name name) chain-parents
                                        (create-struct nil) (create-class (not create-struct))
                                        struct-options
-                                       (defclass-macro-name *defclass-macro-name-for-dynamic-context*))
+                                       (defclass-macro-name 'defclass))
   "This macro generates with-NAME/in-NAME/current-NAME/has-NAME macros to access a CLOS instance in a special variable.
    The purpose is to provide an easy way to access a group of related cotextual values."
   (assert (and (or create-class
