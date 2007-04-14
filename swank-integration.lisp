@@ -26,8 +26,16 @@
 (eval-always
   (use-package :swank))
 
-;; when inspecting a computed slot, display the computed-state
 #+#.(cl:when (cl:find-package "SWANK") '(:and))
+(progn
+
+(unless (assoc "COMPUTED-CLASS" *readtable-alist* :test #'string=)
+  (let ((*readtable* (copy-readtable)))
+    (setup-readtable)
+    (push (cons "COMPUTED-CLASS" *readtable*) *readtable-alist*)
+    (push (cons "COMPUTED-CLASS-TEST" *readtable*) *readtable-alist*)))
+
+;; when inspecting a computed slot, display the computed-state
 (defmethod inspect-slot-for-emacs ((class computed-class)
                                    (object computed-object)
                                    (slot computed-effective-slot-definition))
@@ -47,4 +55,6 @@
              " "
              (:action "[make unbound]" ,(lambda () (slot-makunbound-using-class class object slot)))))
           (t (call-next-method)))))
+
+)
 

@@ -80,14 +80,12 @@
   :components
   ((:file "test")))
 
-(defmethod perform :after ((op load-op) (system (eql (find-system :computed-class-test))))
-  ;; globally enable the syntax in the repl thread
-  (eval (read-from-string "(computed-class::enable-sharp-boolean-syntax)")))
-
 (defmethod perform ((op test-op) (system (eql (find-system :computed-class))))
   (operate 'load-op :computed-class)
   (operate 'load-op :computed-class-test)
   (in-package :computed-class-test)
+  (declaim (optimize (debug 3)))
+  (warn "(declaim (optimize (debug 3))) was issued to help later C-c C-c'ing")
   (eval (read-from-string "(stefil:funcall-test-with-feedback-message 'test)")))
 
 (defmethod operation-done-p ((op test-op) (system (eql (find-system :computed-class))))

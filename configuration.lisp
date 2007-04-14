@@ -59,9 +59,12 @@
         copy-place-independent-slots-of-computed-state)))
 
 (defun file-header ()
-  `(progn
+  `(eval-always
     (declaim ,(inline-declaration))
-    (enable-sharp-boolean-syntax)))
+    (setup-readtable)))
+
+(defun setup-readtable ()
+  (enable-sharp-boolean-syntax))
 
 (defmacro standard-instance-access-form (object slot)
   `(standard-instance-access ,object
