@@ -71,6 +71,23 @@
 (defclass computed-effective-slot-definition (computed-slot-definition standard-effective-slot-definition)
   ())
 
+(defclass functional-slot-definition (standard-slot-definition)
+  ((slot-value-function
+    :type function
+    :accessor slot-value-function-of
+    :initarg :slot-value-function)
+   (setf-slot-value-function
+    :type function
+    :accessor setf-slot-value-function-of
+    :initarg :setf-slot-value-function))
+  (:default-initargs :allocation :class))
+
+(defclass functional-direct-slot-definition (functional-slot-definition standard-direct-slot-definition)
+  ())
+
+(defclass functional-effective-slot-definition (functional-slot-definition standard-effective-slot-definition)
+  ())
+
 (defmethod shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names
                                       &rest args &key (initform nil initform-p) computed-in &allow-other-keys)
   ;; convert the initform into a compute-as* primitive form, assert and set computed-in properly
@@ -113,16 +130,14 @@
     (or (getf slot-initargs :computed-in)
         (compute-as-form-p initform))))
 
-(defmethod direct-slot-definition-class ((class computed-class) &rest slot-initargs)
-  (if (needs-to-be-computed-direct-slot-p slot-initargs)
-      (find-class 'computed-direct-slot-definition)
-      (call-next-method)))
-
-(defmethod direct-slot-definition-class ((class computed-class*) &key initform (computed-in #f) &allow-other-keys)
-  (if (or computed-in
-          (compute-as-form-p initform))
-      (find-class 'computed-direct-slot-definition-with-custom-accessors)
-      (call-next-method)))
+(defmethod direct-slot-definition-class ((class computed-class) &rest slot-initargs
+                                         &key slot-value-function setf-slot-value-function &allow-other-keys)
+  (cond ((or slot-value-function setf-slot-value-function)
+         (find-class 'functional-direct-slot-definition))
+        ((needs-to-be-computed-direct-slot-p slot-initargs)
+         (find-class 'computed-direct-slot-definition))
+        (t
+         (call-next-method))))
 
 (defmethod effective-slot-definition-class ((class computed-class) &key &allow-other-keys)
   (declare (special %effective-slot-definition-class%))
@@ -135,37 +150,50 @@
              (typep direct-slot-definition 'computed-direct-slot-definition))
            direct-slot-definitions))
 
+(defun needs-to-be-functional-effective-slot-p (direct-slot-definitions)
+  (find-if (lambda (direct-slot-definition)
+             (typep direct-slot-definition 'functional-direct-slot-definition))
+           direct-slot-definitions))
+
 (defmethod compute-effective-slot-definition ((class computed-class) name direct-slot-definitions)
   (declare (type list direct-slot-definitions))
   ;; TODO: it is unclear what to do when the direct slot definitions have different computed-in specifications
-  (let ((%effective-slot-definition-class% (when (needs-to-be-computed-effective-slot-p direct-slot-definitions)
-                                             'computed-effective-slot-definition)))
+  (let ((%effective-slot-definition-class%
+         (cond ((needs-to-be-computed-effective-slot-p direct-slot-definitions)
+                'computed-effective-slot-definition)
+               ((needs-to-be-functional-effective-slot-p direct-slot-definitions)
+                'functional-effective-slot-definition))))
     (declare (special %effective-slot-definition-class%))
     (aprog1
         (call-next-method)
       ;; We collect and copy the readers and writers to the effective-slot, so we can access it
       ;; later when generating custom accessors.
-      (when (typep it 'computed-effective-slot-definition)
-        (setf (computed-in-of it) (some (lambda (slot) (when (typep slot 'computed-direct-slot-definition)
-                                                         (computed-in-of slot)))
-                                        direct-slot-definitions))
-        (assert (computed-in-of it) nil "Computed effective slots must be assigned to a computed universe")
-        (setf (computed-readers-of it)
-              (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
-                                       appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
-                                                     (computed-readers-of direct-slot-definition)
-                                                     (slot-definition-readers direct-slot-definition)))
-                                 :test #'equal))
-        (setf (computed-writers-of it)
-              (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
-                                       appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
-                                                     (computed-writers-of direct-slot-definition)
-                                                     (slot-definition-writers direct-slot-definition)))
-                                 :test #'equal))
-        (when (typep it 'computed-direct-slot-definition-with-custom-accessors)
-          ;; ensure the generic functions early, so we avoid compile time warnings of undefined functions
-          (map nil 'ensure-generic-function-for-accessor (computed-readers-of it))
-          (map nil 'ensure-generic-function-for-accessor (computed-writers-of it)))))))
+      (cond ((typep it 'computed-effective-slot-definition)
+             (setf (computed-in-of it) (some (lambda (slot) (when (typep slot 'computed-direct-slot-definition)
+                                                              (computed-in-of slot)))
+                                             direct-slot-definitions))
+             (assert (computed-in-of it) nil "Computed effective slots must be assigned to a computed universe")
+             (setf (computed-readers-of it)
+                   (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
+                                            appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
+                                                          (computed-readers-of direct-slot-definition)
+                                                          (slot-definition-readers direct-slot-definition)))
+                                      :test #'equal))
+             (setf (computed-writers-of it)
+                   (remove-duplicates (loop for direct-slot-definition :in direct-slot-definitions
+                                            appending (if (typep direct-slot-definition 'computed-direct-slot-definition)
+                                                          (computed-writers-of direct-slot-definition)
+                                                          (slot-definition-writers direct-slot-definition)))
+                                      :test #'equal))
+             (when (typep it 'computed-direct-slot-definition-with-custom-accessors)
+               ;; ensure the generic functions early, so we avoid compile time warnings of undefined functions
+               (map nil 'ensure-generic-function-for-accessor (computed-readers-of it))
+               (map nil 'ensure-generic-function-for-accessor (computed-writers-of it))))
+            ((typep it 'functional-effective-slot-definition)
+             (setf (slot-value-function-of it)
+                   (compile nil (some 'slot-value-function-of direct-slot-definitions)))
+             (setf (setf-slot-value-function-of it)
+                   (compile nil (some 'setf-slot-value-function-of direct-slot-definitions))))))))
 
 (defmacro slot-value-using-class-body (object slot)
   (declare (type (or symbol effective-slot-definition) slot))
@@ -226,12 +254,25 @@
   (declare #.(optimize-declaration))
   (slot-value-using-class-body object slot))
 
+(defmethod slot-value-using-class ((class computed-class)
+                                   (object computed-object)
+                                   (slot functional-effective-slot-definition))
+  (declare #.(optimize-declaration))
+  (funcall (the function (slot-value-function-of slot)) class object slot #'call-next-method))
+
 (defmethod (setf slot-value-using-class) (new-value
                                           (class computed-class)
                                           (object computed-object)
                                           (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
   (setf-slot-value-using-class-body new-value object slot))
+
+(defmethod (setf slot-value-using-class) (new-value
+                                          (class computed-class)
+                                          (object computed-object)
+                                          (slot functional-effective-slot-definition))
+  (declare #.(optimize-declaration))
+  (funcall (the function (setf-slot-value-function-of slot)) new-value class object slot #'call-next-method))
 
 (defmethod slot-boundp-using-class ((class computed-class)
                                     (object computed-object)
@@ -240,11 +281,23 @@
   (not (eq (standard-instance-access-form object slot)
            (load-time-value +unbound-slot-value+))))
 
+(defmethod slot-boundp-using-class ((class computed-class)
+                                    (object computed-object)
+                                    (slot functional-effective-slot-definition))
+  (declare #.(optimize-declaration))
+  #t)
+
 (defmethod slot-makunbound-using-class ((class computed-class)
                                         (object computed-object)
                                         (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
   (setf-standard-instance-access-form (load-time-value +unbound-slot-value+) object slot))
+
+(defmethod slot-makunbound-using-class ((class computed-class)
+                                        (object computed-object)
+                                        (slot functional-effective-slot-definition))
+  (declare #.(optimize-declaration))
+  (error "The functional slot ~A in class ~A cannot be unbound." (slot-definition-name slot) (class-name class)))
 
 (defclass computed-accessor-method (standard-accessor-method)
   ((effective-slot
