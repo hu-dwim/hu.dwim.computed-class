@@ -52,13 +52,14 @@
       
       (unless (get ',primitive-compute-as-macro-name 'computed-universe)
         (setf (get ',primitive-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
-      (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode)) &body form)
+      (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode) (universe)) &body form)
         ,docstring
         (let ((self-variable-name ',self-variable-name))
           (unless (eq kind 'object-slot)
             (setf self-variable-name (gensym)))
-          `(make-computed-state :universe (load-time-value
-                                           (get ',',primitive-compute-as-macro-name 'computed-universe))
+          `(make-computed-state :universe ,(or universe
+                                               `(load-time-value
+                                                (get ',',primitive-compute-as-macro-name 'computed-universe)))
             :recomputation-mode ',recomputation-mode
             #+debug :form #+debug ',form
             :compute-as (lambda (,self-variable-name
