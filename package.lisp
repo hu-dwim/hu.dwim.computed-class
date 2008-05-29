@@ -27,13 +27,12 @@
 
   (:shadow #:log)
   
-  (:use :cl :closer-mop :arnesi :computed-class-system)
+  (:use :cl :cl-def :closer-mop :arnesi :computed-class-system)
 
   (:export #:defcclass
            #:computed-class
            #:computed-class*
            #:define-computed-universe
-           #:-self-
            #:-current-value-
            #:make-slot-uncomputed
            #:clet
