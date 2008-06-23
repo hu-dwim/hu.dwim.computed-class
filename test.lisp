@@ -23,7 +23,7 @@
 (in-package :computed-class)
 
 (defpackage :computed-class-test
-  (:use :cl :computed-class :closer-mop :arnesi :stefil))
+  (:use :common-lisp :cl-def :anaphora :computed-class :closer-mop :stefil))
 
 (eval-always
   (import '(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse

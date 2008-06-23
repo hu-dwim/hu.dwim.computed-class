@@ -26,7 +26,10 @@
   (asdf:operate 'asdf:load-op :closer-mop))
 
 (defpackage :computed-class-system
-  (:use :cl :asdf :closer-mop)
+  (:use :common-lisp
+        :asdf
+        :closer-mop
+        :cl-syntax-sugar)
   (:export
    #:optimize-declaration
    #:*load-with-debug-p*))
@@ -61,8 +64,15 @@
 	       "Levente Mészáros <levente.meszaros@gmail.com>")
   :licence "BSD"
   :description "Computed class is a class meta object which supports computed slots."
-  ;; TODO: kill arnesi
-  :depends-on (:cl-def :arnesi :closer-mop)
+  :default-component-class cl-source-file-with-readtable
+  :class system-with-readtable
+  :setup-readtable-function "computed-class::setup-readtable"
+  :depends-on (:cl-def
+               :cl-yalog
+               :cl-syntax-sugar
+               :anaphora
+               :alexandria
+               :closer-mop)
   :default-component-class computed-class-file
   :components
   ((:file "package")

@@ -27,6 +27,10 @@
 ;;; These definitions need to be available by the time we are reading the other files, therefore
 ;;; they are in a standalone file.
 
+(defmacro eval-always (&body body)
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     ,@body))
+
 ;; TODO: this should be in closer-mop?
 (progn
   (defclass test ()
@@ -60,8 +64,7 @@
 
 (defun file-header ()
   `(eval-always
-    (declaim ,(inline-declaration))
-    (setup-readtable)))
+    (declaim ,(inline-declaration))))
 
 (defun setup-readtable ()
   (enable-sharp-boolean-syntax))

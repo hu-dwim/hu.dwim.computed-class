@@ -27,7 +27,14 @@
 
   (:shadow #:log)
   
-  (:use :cl :cl-def :closer-mop :arnesi :computed-class-system)
+  (:use :common-lisp
+        :cl-def
+        :cl-yalog
+        :cl-syntax-sugar
+        :anaphora
+        :alexandria
+        :closer-mop
+        :computed-class-system)
 
   (:export #:defcclass
            #:computed-class

@@ -46,7 +46,7 @@
           ((computed-state-p value)
            `(,(if (computed-state-valid-p value) "Valid: " "Invalid: ")
              (:value ,(cs-value value))
-             ,(strcat ", pulse: " (cs-computed-at-pulse value) "/" (cs-validated-at-pulse value))
+             ,(concatenate 'string ", pulse: " (princ-to-string (cs-computed-at-pulse value)) "/" (princ-to-string (cs-validated-at-pulse value)))
              ", " (:value ,value ,(cu-name (cs-universe value)))
              " "
              ,(if (computed-state-valid-p value)

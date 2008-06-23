@@ -122,7 +122,7 @@
 
 (defmethod initialize-instance :around ((slot computed-direct-slot-definition-with-custom-accessors)
                                         &rest args &key readers writers &allow-other-keys)
-  (remf-keywords args :readers :writers)
+  (remove-from-plistf args :readers :writers)
   (apply #'call-next-method slot :computed-readers readers :computed-writers writers args))
 
 (defun needs-to-be-computed-direct-slot-p (slot-initargs)
@@ -422,11 +422,11 @@
 (defmethod shared-initialize :around ((class computed-class) slot-names &rest args
                                       &key direct-slots &allow-other-keys)
   "Support :computed-in #f slot argument for documentation purposes."
-  (remf-keywords args :direct-slots)
+  (remove-from-plistf args :direct-slots)
   (let* ((direct-slots (loop for direct-slot :in direct-slots
                              collect (progn
                                        (unless (getf direct-slot :computed-in)
-                                         (remf-keywords direct-slot :computed-in))
+                                         (remove-from-plistf direct-slot :computed-in))
                                        direct-slot))))
     (apply #'call-next-method class slot-names :direct-slots direct-slots args)))
 

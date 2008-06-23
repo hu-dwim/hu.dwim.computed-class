@@ -24,9 +24,8 @@
 
 #.(file-header)
 
-(eval-always
-  (defconstant +invalid-pulse+ -1
-    "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation."))
+(def constant +invalid-pulse+ -1
+  "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
 ;;;;;;;;;;;;;;;;;;;
 ;;; Computed states

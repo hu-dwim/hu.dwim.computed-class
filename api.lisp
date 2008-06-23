@@ -42,7 +42,7 @@
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
   (let ((primitive-compute-as-macro-name (concatenate-symbol compute-as-macro-name "*"))
-        (docstring (strcat "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
+        (docstring (concatenate 'string "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
     `(eval-always
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
       (setf (get ',compute-as-macro-name 'primitive-compute-as-macro) ',primitive-compute-as-macro-name)
