@@ -23,7 +23,8 @@
 (in-package :cl-user)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (asdf:operate 'asdf:load-op :closer-mop))
+  (asdf:operate 'asdf:load-op :closer-mop)
+  (asdf:operate 'asdf:load-op :cl-syntax-sugar))
 
 (defpackage :computed-class-system
   (:use :common-lisp
