@@ -38,8 +38,12 @@
 
   (:export #:defcclass
            #:computed-class
+           #:computed-object
+           #:computed-direct-slot-definition
+           #:computed-effective-slot-definition
            #:computed-class*
            #:define-computed-universe
+           #:make-computed-universe
            #:-current-value-
            #:make-slot-uncomputed
            #:clet
@@ -53,6 +57,7 @@
   (:export #:computed-state-for
            #:invalidate-computed-slot
            #:invalidate-computed-state
+           #:computed-slot-valid-p
            #:recompute-slot
            #:recompute-computed-state))
 
