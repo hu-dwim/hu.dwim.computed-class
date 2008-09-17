@@ -91,6 +91,16 @@
                  (when (slot-boundp-using-class (class-of object) object slot)
                    (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object))))))
 
+(defgeneric computed-slot-valid-p (object slot)
+  (:documentation "Checks if the given slot value is invalid or not.")
+  (:method ((object computed-object) (slot-name symbol))
+           (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
+  (:method ((object computed-object) (slot computed-effective-slot-definition))
+           (let ((computed-state (computed-state-or-nil object slot)))
+             (if computed-state
+                 (computed-state-valid-p computed-state)
+                 #t))))
+
 (defgeneric make-slot-uncomputed (object slot)
   (:documentation "Makes the slot a constant slot with respect to other computed slots. The current value will not be racalculated even if it's invalid.")
   (:method ((object computed-object) (slot-name symbol))
