@@ -37,9 +37,7 @@
 
 (enable-sharp-boolean-syntax)
 
-(in-root-suite)
-
-(defsuite* test)
+(defsuite* (test :in root-suite))
 
 (define-computed-universe compute-as :name "Default computed-class-test universe")
 (define-computed-universe separated-compute-as :name "Separated computed-class-test universe")

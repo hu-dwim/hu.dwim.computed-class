@@ -54,10 +54,10 @@
    nil
    :type computed-universe)
   (computed-at-pulse
-   #.+invalid-pulse+
+   +invalid-pulse+
    :type integer)
   (validated-at-pulse
-   #.+invalid-pulse+
+   +invalid-pulse+
    :type integer)
   (depends-on
    nil
@@ -78,7 +78,7 @@
    :type (member standalone object-slot variable))
   (recomputation-mode
    :on-demand
-   ;; TODO: add keep-up-to-date
+   ;; TODO: add :keep-up-to-date
    :type (member :always :on-demand))
   ;; contains the name of the variable
   (variable
