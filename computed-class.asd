@@ -23,8 +23,17 @@
 (in-package :cl-user)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (asdf:operate 'asdf:load-op :closer-mop)
-  (asdf:operate 'asdf:load-op :cl-syntax-sugar))
+  (flet ((try (system)
+           (unless (asdf:find-system system nil)
+             (warn "Trying to install required dependency: ~S" system)
+             (when (find-package :asdf-install)
+               (funcall (read-from-string "asdf-install:install") system))
+             (unless (asdf:find-system system nil)
+               (error "The ~A system requires ~A." (or *compile-file-pathname* *load-pathname*) system)))
+           (asdf:operate 'asdf:load-op system)))
+    (try :asdf-system-connections)
+    (try :closer-mop)
+    (try :cl-syntax-sugar)))
 
 (defpackage :computed-class-system
   (:use :common-lisp
@@ -83,8 +92,15 @@
    (:file "mop" :depends-on ("engine" "configuration"))
    (:file "api" :depends-on ("engine" "mop"))
    (:file "clet" :depends-on ("engine"))
-   (:file "defcfun" :depends-on ("engine"))
-   (:file "swank-integration" :depends-on ("engine" "mop"))))
+   (:file "defcfun" :depends-on ("engine"))))
+
+(defsystem-connection computed-class-and-swank
+  :requires (:computed-class #:cl-syntax-sugar-and-swank)
+  :default-component-class cl-source-file-with-readtable
+  :class system-connection-with-readtable
+  :setup-readtable-function "computed-class::setup-readtable"
+  :components
+  ((:file "swank-integration")))
 
 (defsystem :computed-class-test
   :description "Tests for the computed-class system."

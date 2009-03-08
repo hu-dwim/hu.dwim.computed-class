@@ -22,18 +22,9 @@
 
 (in-package :computed-class)
 
-#+#.(cl:when (cl:find-package "SWANK") '(:and))
-(eval-always
-  (use-package :swank))
-
-#+#.(cl:when (cl:find-package "SWANK") '(:and))
-(progn
-
-(unless (assoc "COMPUTED-CLASS" *readtable-alist* :test #'string=)
-  (let ((*readtable* (copy-readtable)))
-    (setup-readtable)
-    (push (cons "COMPUTED-CLASS" *readtable*) *readtable-alist*)
-    (push (cons "COMPUTED-CLASS-TEST" *readtable*) *readtable-alist*)))
+(cl-syntax-sugar:register-readtable-for-swank
+ :computed-class 'setup-readtable
+ :computed-class-test 'setup-readtable)
 
 ;; when inspecting a computed slot, display the computed-state
 (defmethod inspect-slot-for-emacs ((class computed-class)
@@ -55,6 +46,4 @@
              " "
              (:action "[make unbound]" ,(lambda () (slot-makunbound-using-class class object slot)))))
           (t (call-next-method)))))
-
-)
 
