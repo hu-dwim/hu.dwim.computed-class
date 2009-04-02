@@ -103,7 +103,8 @@
     (:metaclass computed-class*))
 
   (defclass level1-1 (level0-1)
-    ((z)))
+    ((z))
+    (:metaclass computed-class*))
 
   (defclass sub (level1-1 level0-2)
     ((b
