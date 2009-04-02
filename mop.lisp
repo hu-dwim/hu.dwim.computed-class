@@ -35,10 +35,8 @@
   ()
   (:documentation "Just like computed-class but the classes having this metaclass will have custom accessors. This slows down loading but speeds up the accessors quite a bit."))
 
-(defmethod validate-superclass ((class standard-class) (superclass computed-class))
-  t)
-(defmethod validate-superclass ((class computed-class) (superclass standard-class))
-  t)
+(defmethod validate-superclass ((subclass computed-class) (superclass standard-class))
+  (subtypep (class-of subclass) (class-of superclass)))
 
 (defclass computed-object ()
   ()
