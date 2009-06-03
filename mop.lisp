@@ -101,7 +101,7 @@
     (when (and initform-p
                primitive-form)
       (if computed-in
-          (assert (eq (first primitive-form) computed-in) ()
+          (assert (or (atom primitive-form) (eq (first primitive-form) computed-in)) ()
                   ":computed-in and the :initform parameters are not consistent. ~S is not computed in ~S"
                   initform computed-in)
           (setf computed-in (first primitive-form)))
