@@ -27,9 +27,9 @@
  :computed-class-test 'setup-readtable)
 
 ;; when inspecting a computed slot, display the computed-state
-(defmethod inspect-slot-for-emacs ((class computed-class)
-                                   (object computed-object)
-                                   (slot computed-effective-slot-definition))
+(defmethod swank:inspect-slot-for-emacs ((class computed-class)
+                                         (object computed-object)
+                                         (slot computed-effective-slot-definition))
   ;; we skip svuc to avoid recalculation of invalid slots
   (let ((value (standard-instance-access-form object slot)))
     (cond ((eq value '#.+unbound-slot-value+)
@@ -46,4 +46,3 @@
              " "
              (:action "[make unbound]" ,(lambda () (slot-makunbound-using-class class object slot)))))
           (t (call-next-method)))))
-
