@@ -73,6 +73,9 @@
         `(,',primitive-compute-as-macro-name ()
           ,@body)))))
 
+(def (definer e :available-flags "e") computed-universe (compute-as-macro-name &rest args &key name default-recomputation-mode self-variable-name current-value-variable-name)
+  (declare (ignore name default-recomputation-mode self-variable-name current-value-variable-name))
+  `(define-computed-universe ,compute-as-macro-name ,@args))
 
 (defgeneric computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")

@@ -123,7 +123,6 @@
   :create-struct #t
   :struct-options ((:conc-name rsc-)))
 
-
 (defun computed-state-value (computed-state)
   "Read the value, recalculate when needed."
   (declare (type computed-state computed-state)
