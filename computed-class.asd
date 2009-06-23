@@ -65,7 +65,7 @@
     (call-next-method)))
 
 (defsystem :computed-class
-  :version "0.5"
+  :version "1.0"
   :author ("Attila Lendvai <attila.lendvai@gmail.com>"
 	   "Tamás Borbély <tomi.borbely@gmail.com>"
 	   "Levente Mészáros <levente.meszaros@gmail.com>")
