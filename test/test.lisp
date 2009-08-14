@@ -1,39 +1,10 @@
-;; -*- mode: Lisp; Syntax: Common-Lisp; Package: computed-class; -*-
+;;; -*- mode: Lisp; Syntax: Common-Lisp; -*-
 ;;;
-;;; Copyright (c) 2006 by the authors.
+;;; Copyright (c) 2009 by the authors.
 ;;;
-;;; Permission is hereby granted, free of charge, to any person obtaining a copy 
-;;; of this software and associated documentation files (the "Software"), to deal 
-;;; in the Software without restriction, including without limitation the rights 
-;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
-;;; copies of the Software, and to permit persons to whom the Software is furnished 
-;;; to do so, subject to the following conditions:
-;;;
-;;; The above copyright notice and this permission notice shall be included in 
-;;; all copies or substantial portions of the Software.
-;;;
-;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
-;;; IN THE SOFTWARE.
+;;; See LICENCE for details.
 
-(in-package :computed-class)
-
-(defpackage :computed-class-test
-  (:use :common-lisp :cl-def :anaphora :computed-class :closer-mop :stefil))
-
-(eval-always
-  (import '(find-slot computed-state-or-nil computed-effective-slot-definition current-pulse
-            slot-value-using-class-body setf-slot-value-using-class-body
-            enable-sharp-boolean-syntax standard-instance-access-form computed-state-p
-            log.dribble log.debug log.info log.warn log.error
-            cs-kind cs-variable cs-depends-on)
-          (find-package :computed-class-test)))
-
-(in-package :computed-class-test)
+(in-package :hu.dwim.computed-class.test)
 
 (enable-sharp-boolean-syntax)
 
@@ -42,7 +13,7 @@
 (define-computed-universe compute-as :name "Default computed-class-test universe")
 (define-computed-universe separated-compute-as :name "Separated computed-class-test universe")
 
-;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; defclass tests
 
 (deftest defclass1 ()
@@ -119,7 +90,7 @@
     (is (= (a-of sub) 1))
     (is (= (b-of sub) 0))))
 
-;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; Instance tests
 
 (defclass computed-test ()
@@ -204,7 +175,7 @@
     (setf (slot-a-of object) 2)
     (is (= 3 (slot-b-of object)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; always recomputed stuff
 
 (defparameter *always-compute-global-counter* 0)
@@ -242,7 +213,7 @@
 
     (is (null (cs-depends-on b-state)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; Reconfiguration tests
 
 (deftest reconfigure1 ()
@@ -282,7 +253,7 @@
         (invalidate-computed-slot object 'slot-b)
         (is (= 43 (slot-b-of object)))))))
 
-;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; clet tests
 
 (deftest clet1 ()
@@ -427,7 +398,7 @@ dragons be here :)
     (signals error (slot-b-of object))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; universe-separation tests
 
 (deftest universe-separation1 ()
@@ -442,7 +413,7 @@ dragons be here :)
     (is (= 0 (length (cs-depends-on b-state))))))
 
 
-;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; defcfun tests
 
 ;; define some lexical variables, some of them are computed
@@ -530,7 +501,7 @@ dragons be here :)
   (is (equal (list 3 2 1) (multiple-value-list (fun-with-multiple-values 1 2 :key 3)))))
 
 
-;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; Timing tests
 
 (defclass standard-test ()
@@ -550,7 +521,7 @@ dragons be here :)
            (terpri *debug-io*)
            (write-line message *debug-io*)
            (terpri *debug-io*)
-           (time
+           (common-lisp:time
             (dotimes (counter 4000000)
               (slot-b-of object)))
            (terpri *debug-io*)))
@@ -566,7 +537,7 @@ dragons be here :)
            (terpri *debug-io*)
            (write-line message *debug-io*)
            (terpri *debug-io*)
-           (time
+           (common-lisp:time
             (dotimes (counter 1000000)
               (setf (slot-a-of object) counter)
               (slot-b-of object)))

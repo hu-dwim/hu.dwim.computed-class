@@ -1,33 +1,17 @@
-;; -*- mode: Lisp; Syntax: Common-Lisp; Package: computed-class; -*-
+;;; -*- mode: Lisp; Syntax: Common-Lisp; -*-
 ;;;
-;;; Copyright (c) 2006 by the authors.
+;;; Copyright (c) 2009 by the authors.
 ;;;
-;;; Permission is hereby granted, free of charge, to any person obtaining a copy 
-;;; of this software and associated documentation files (the "Software"), to deal 
-;;; in the Software without restriction, including without limitation the rights 
-;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
-;;; copies of the Software, and to permit persons to whom the Software is furnished 
-;;; to do so, subject to the following conditions:
-;;;
-;;; The above copyright notice and this permission notice shall be included in 
-;;; all copies or substantial portions of the Software.
-;;;
-;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
-;;; IN THE SOFTWARE.
+;;; See LICENCE for details.
 
-(in-package :computed-class)
+(in-package :hu.dwim.computed-class)
 
 #.(file-header)
 
 (def constant +invalid-pulse+ -1
   "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
-;;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; Computed states
 
 (defstruct (computed-universe (:conc-name cu-))
@@ -101,7 +85,7 @@
   (macrolet ((x (&rest names)
                `(progn
                  ,@(loop for name :in names
-                         for accessor = (concatenate-symbol (find-package :computed-class) ; *package* is not ok, because due to inlining it may get expanded in a different package
+                         for accessor = (concatenate-symbol (find-package :hu.dwim.computed-class) ; *package* is not ok, because due to inlining it may get expanded in a different package
                                                             "cs-" name)
                          collect `(setf (,accessor into) (,accessor from))))))
     (x universe
@@ -279,7 +263,7 @@
     (format stream "<#~A :pulse ~A :value ~A :kind ~A>"
             name (cs-computed-at-pulse computed-state) (cs-value computed-state) (cs-kind computed-state))))
 
-;;;;;;;;;;;;;;;;;;
+;;;;;;
 ;;; Helper methods
 
 (defun primitive-p (object)

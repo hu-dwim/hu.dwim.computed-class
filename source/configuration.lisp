@@ -1,26 +1,10 @@
-;; -*- mode: Lisp; Syntax: Common-Lisp; Package: computed-class; -*-
+;;; -*- mode: Lisp; Syntax: Common-Lisp; -*-
 ;;;
-;;; Copyright (c) 2006 by the authors.
+;;; Copyright (c) 2009 by the authors.
 ;;;
-;;; Permission is hereby granted, free of charge, to any person obtaining a copy 
-;;; of this software and associated documentation files (the "Software"), to deal 
-;;; in the Software without restriction, including without limitation the rights 
-;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
-;;; copies of the Software, and to permit persons to whom the Software is furnished 
-;;; to do so, subject to the following conditions:
-;;;
-;;; The above copyright notice and this permission notice shall be included in 
-;;; all copies or substantial portions of the Software.
-;;;
-;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
-;;; IN THE SOFTWARE.
+;;; See LICENCE for details.
 
-(in-package :computed-class)
+(in-package :hu.dwim.computed-class)
 
 (enable-sharp-boolean-syntax)
 
@@ -51,8 +35,7 @@
   #-debug(declare (ignore body)))
 
 (defun inline-declaration ()
-  (if *load-with-debug-p*
-      (values)
+  (if *load-as-production?*
       '(inline
         incf-pulse current-pulse
         computed-state-value (setf computed-state-value)
@@ -60,7 +43,8 @@
         invalidate-computed-state computed-state-or-nil find-slot
         computation-of-computed-state (setf computation-of-computed-state)
         standard-instance-access (setf standard-instance-access)
-        copy-place-independent-slots-of-computed-state)))
+        copy-place-independent-slots-of-computed-state)
+      (values)))
 
 (defun file-header ()
   `(eval-always
