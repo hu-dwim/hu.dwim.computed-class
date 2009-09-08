@@ -4,9 +4,9 @@
 ;;;
 ;;; See LICENCE for details.
 
-(in-package :asdf)
-
 (load-system :hu.dwim.asdf)
+
+(in-package :hu.dwim.asdf)
 
 (defsystem :hu.dwim.computed-class+hu.dwim.syntax-sugar+swank
   :class hu.dwim.system
