@@ -8,11 +8,6 @@
 
 ;;; THE CONTENT OF THIS FILE IS COPIED OVER FROM SOME OTHER LIBRARIES TO DECREASE DEPENDENCIES
 
-(defmacro prog1-bind (var ret &body body)
-  `(let ((,var ,ret))
-    ,@body
-    ,var))
-
 (defun concatenate-symbol (&rest args)
   "Args are processed as parts of the result symbol with an exception: when a package is encountered then it is stored as the target package at intern."
   (let* ((package nil)
