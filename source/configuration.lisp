@@ -30,10 +30,6 @@
 
   (setf (find-class 'test) nil))
 
-(defmacro debug-only (&body body)
-  #+debug`(progn ,@body)
-  #-debug(declare (ignore body)))
-
 (defun inline-declaration ()
   (if *load-as-production?*
       '(inline
