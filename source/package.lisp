@@ -13,8 +13,6 @@
         :hu.dwim.logger
         :hu.dwim.syntax-sugar)
   
-  (:shadow #:log)
-
   (:export #:defcclass
            #:computed-class
            #:computed-object
@@ -39,10 +37,3 @@
            #:computed-slot-valid-p
            #:recompute-slot
            #:recompute-computed-state))
-
-(in-package :hu.dwim.computed-class)
-
-(deflogger log ()
-  :level +warn+
-  :compile-time-level #+optimize +warn+ #-optimize +dribble+
-  :appender (make-instance 'brief-stream-log-appender :stream *debug-io*))

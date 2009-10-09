@@ -315,41 +315,41 @@
              (= (slot-definition-location (effective-slot-of current-method))
                 (slot-definition-location effective-slot)))
         (progn
-          (log.dribble "Keeping compatible ~A for class ~A, slot ~S, slot-location ~A"
-                       (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
-                       (slot-definition-location effective-slot))
+          (computed-class.dribble "Keeping compatible ~A for class ~A, slot ~S, slot-location ~A"
+                                  (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
+                                  (slot-definition-location effective-slot))
           #+debug(incf *kept-accessors*)
           (setf (effective-slot-of current-method) effective-slot))
         (progn
-          (log.debug "Ensuring new ~A for class ~A, slot ~S, effective-slot ~A, slot-location ~A"
-                     (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
-                     effective-slot (slot-definition-location effective-slot))          
+          (computed-class.debug "Ensuring new ~A for class ~A, slot ~S, effective-slot ~A, slot-location ~A"
+                                (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
+                                effective-slot (slot-definition-location effective-slot))          
           #+debug(incf *new-accessors*)
           (let  ((method (ensure-method gf
                                         (ecase type
                                           (:reader
                                            `(lambda (object)
                                              (declare (optimize (speed 1))) ; (speed 1) to ignore compiler notes when defining accessors
-                                             (log.dribble "Entered reader for object ~A, generated for class ~A, slot ~A, slot-location ~A"
-                                              object ,class ,effective-slot ,(slot-definition-location effective-slot))
+                                             (lcomputed-class.dribble "Entered reader for object ~A, generated for class ~A, slot ~A, slot-location ~A"
+                                                                      object ,class ,effective-slot ,(slot-definition-location effective-slot))
                                              (if (eq (class-of object) ,class)
                                                  (progn
                                                    ,(macroexpand `(slot-value-using-class-body object ,effective-slot)))
                                                  (progn
-                                                   (log.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
-                                                                object (slot-definition-name ,effective-slot))
+                                                   (computed-class.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
+                                                                           object (slot-definition-name ,effective-slot))
                                                    (slot-value object ',(slot-definition-name effective-slot))))))
                                           (:writer
                                            `(lambda (new-value object)
                                              (declare (optimize (speed 1))) ; (speed 1) to ignore compiler notes when defining accessors
-                                             (log.dribble "Entered writer for object ~A, generated for class ~A, slot ~A, slot-location ~A"
-                                              object ,class ,effective-slot ,(slot-definition-location effective-slot))
+                                             (computed-class.dribble "Entered writer for object ~A, generated for class ~A, slot ~A, slot-location ~A"
+                                                                     object ,class ,effective-slot ,(slot-definition-location effective-slot))
                                              (if (eq (class-of object) ,class)
                                                  (progn
                                                    ,(macroexpand `(setf-slot-value-using-class-body new-value object ,effective-slot)))
                                                  (progn
-                                                   (log.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
-                                                                object  (slot-definition-name ,effective-slot))
+                                                   (computed-class.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
+                                                                           object  (slot-definition-name ,effective-slot))
                                                    (setf (slot-value object ',(slot-definition-name effective-slot)) new-value))))))
                                         :specializers specializers
                                         #+ensure-method-supports-method-class :method-class
@@ -361,7 +361,7 @@
 (defun ensure-accessors-for (class)
   (loop for effective-slot :in (class-slots class)
         when (typep effective-slot 'computed-effective-slot-definition) do
-        (log.dribble "Visiting effective-slot ~A of class ~A to generate accessors" effective-slot class)
+        (computed-class.dribble "Visiting effective-slot ~A of class ~A to generate accessors" effective-slot class)
         (dolist (reader (computed-readers-of effective-slot))
           (ensure-accessor-for class reader effective-slot :reader))
         (dolist (writer (computed-writers-of effective-slot))

@@ -16,15 +16,15 @@
   :licence "BSD / Public domain"
   :description "Constraint based change propagation"
   :depends-on (:hu.dwim.common-lisp
-               :hu.dwim.def
                :hu.dwim.logger
                :hu.dwim.syntax-sugar)
   :components ((:module "source"
-                :components ((:file "package")
-                             (:file "duplicates" :depends-on ("package"))
-                             (:file "configuration" :depends-on ("duplicates"))
-                             (:file "engine" :depends-on ("configuration"))
-                             (:file "mop" :depends-on ("engine" "configuration"))
-                             (:file "api" :depends-on ("engine" "mop"))
+                :components ((:file "api" :depends-on ("engine" "mop"))
                              (:file "clet" :depends-on ("engine"))
-                             (:file "defcfun" :depends-on ("engine"))))))
+                             (:file "configuration" :depends-on ("duplicates" "logger"))
+                             (:file "defcfun" :depends-on ("engine"))
+                             (:file "duplicates" :depends-on ("package"))
+                             (:file "engine" :depends-on ("configuration"))
+                             (:file "logger" :depends-on ("package"))
+                             (:file "mop" :depends-on ("engine" "configuration"))
+                             (:file "package")))))
