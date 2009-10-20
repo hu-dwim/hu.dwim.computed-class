@@ -18,5 +18,5 @@
   :depends-on (:hu.dwim.computed-class.test
                :hu.dwim.wui)
   :components ((:module "documentation"
-                :components ((:file "package")
-                             (:file "computed-class" :depends-on ("package"))))))
+                :components ((:file "computed-class" :depends-on ("package"))
+                             (:file "package")))))

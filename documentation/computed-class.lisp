@@ -4,7 +4,22 @@
 ;;;
 ;;; See LICENCE for details.
 
-(in-package :common-lisp-user)
+(in-package :hu.dwim.computed-class.documentation)
+
+(def project :hu.dwim.perec :path (system-pathname :hu.dwim.perec))
+
+(def book user-guide (:title "User guide")
+  (chapter (:title "Introduction")
+    "TODO")
+  (chapter (:title "Supported Common Lisp Implementations")
+    (paragraph ()
+      "SBCL"))
+  (chapter (:title "Supported Operating Systems")
+    (paragraph ()
+      "Linux"))
+  (chapter (:title "Tutorial")
+    (paragraph ()
+      "TODO")))
 
 ;; TODO:
 
