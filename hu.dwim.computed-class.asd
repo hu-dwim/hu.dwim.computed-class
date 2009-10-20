@@ -15,7 +15,7 @@
            "Levente Mészáros <levente.meszaros@gmail.com>")
   :licence "BSD / Public domain"
   :description "Constraint based change propagation"
-  :depends-on (:hu.dwim.common-lisp
+  :depends-on (:hu.dwim.common
                :hu.dwim.logger
                :hu.dwim.syntax-sugar)
   :components ((:module "source"
