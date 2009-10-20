@@ -7,7 +7,7 @@
 (in-package :hu.dwim.computed-class)
 
 (defpackage :hu.dwim.computed-class.test
-  (:use :hu.dwim.common-lisp
+  (:use :hu.dwim.common
         :hu.dwim.computed-class
         :hu.dwim.def
         :hu.dwim.stefil))

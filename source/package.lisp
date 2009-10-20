@@ -8,7 +8,7 @@
 
 (defpackage :hu.dwim.computed-class
   (:use :hu.dwim.asdf
-        :hu.dwim.common-lisp
+        :hu.dwim.common
         :hu.dwim.def
         :hu.dwim.logger
         :hu.dwim.syntax-sugar)
