@@ -9,10 +9,10 @@
 (hu.dwim.syntax-sugar:register-readtable-for-swank
  '(:hu.dwim.computed-class :hu.dwim.computed-class-test) 'setup-readtable)
 
-;; when inspecting a computed slot, display the computed-state
-(defmethod swank:inspect-slot-for-emacs ((class computed-class)
-                                         (object computed-object)
-                                         (slot computed-effective-slot-definition))
+;; when inspecting a computed slot with a computed state inside it, then display the computed-state details
+(defmethod swank::slot-value-for-inspector ((class computed-class)
+                                            (object computed-object)
+                                            (slot computed-effective-slot-definition))
   ;; we skip svuc to avoid recalculation of invalid slots
   (let ((value (standard-instance-access-form object slot)))
     (cond ((eq value '#.+unbound-slot-value+)
@@ -20,12 +20,10 @@
           ((computed-state-p value)
            `(,(if (computed-state-valid-p value) "Valid: " "Invalid: ")
              (:value ,(cs-value value))
-             ,(concatenate 'string ", pulse: " (princ-to-string (cs-computed-at-pulse value)) "/" (princ-to-string (cs-validated-at-pulse value)))
+             ,(concatenate 'string ", pulse: " (integer-to-string (cs-computed-at-pulse value)) "/" (integer-to-string (cs-validated-at-pulse value)))
              ", " (:value ,value ,(cu-name (cs-universe value)))
              " "
              ,(if (computed-state-valid-p value)
                   `(:action "[invalidate]" ,(lambda () (invalidate-computed-state value)))
-                  `(:action "[compute]" ,(lambda () (ensure-computed-state-is-valid value))))
-             " "
-             (:action "[make unbound]" ,(lambda () (slot-makunbound-using-class class object slot)))))
+                  `(:action "[compute]" ,(lambda () (ensure-computed-state-is-valid value))))))
           (t (call-next-method)))))
