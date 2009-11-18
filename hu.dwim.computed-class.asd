@@ -15,16 +15,17 @@
            "Levente Mészáros <levente.meszaros@gmail.com>")
   :licence "BSD / Public domain"
   :description "Constraint based change propagation"
-  :depends-on (:hu.dwim.common
+  :depends-on (:hu.dwim.def+hu.dwim.common
                :hu.dwim.logger
-               :hu.dwim.syntax-sugar)
+               :hu.dwim.syntax-sugar
+               :hu.dwim.util.mop)
   :components ((:module "source"
                 :components ((:file "api" :depends-on ("engine" "mop"))
                              (:file "clet" :depends-on ("engine"))
-                             (:file "configuration" :depends-on ("duplicates" "logger"))
+                             (:file "util" :depends-on ("duplicates" "logger"))
                              (:file "defcfun" :depends-on ("engine"))
                              (:file "duplicates" :depends-on ("package"))
-                             (:file "engine" :depends-on ("configuration"))
+                             (:file "engine" :depends-on ("util"))
                              (:file "logger" :depends-on ("package"))
-                             (:file "mop" :depends-on ("engine" "configuration"))
+                             (:file "mop" :depends-on ("engine"))
                              (:file "package")))))

@@ -4,15 +4,15 @@
 ;;;
 ;;; See LICENCE for details.
 
-(in-package :common-lisp-user)
+(in-package :hu.dwim.util)
 
-(defpackage :hu.dwim.computed-class
+(def package :hu.dwim.computed-class
   (:use :hu.dwim.asdf
         :hu.dwim.common
         :hu.dwim.def
+        :hu.dwim.util
         :hu.dwim.logger
         :hu.dwim.syntax-sugar)
-  
   (:export #:defcclass
            #:computed-class
            #:computed-object
@@ -29,11 +29,11 @@
            #:defcfun
            #:computed-state-value
            #:computation-of-computed-state)
-
   ;; for debug purposes
   (:export #:computed-state-for
            #:invalidate-computed-slot
            #:invalidate-computed-state
            #:computed-slot-valid-p
            #:recompute-slot
-           #:recompute-computed-state))
+           #:recompute-computed-state)
+  (:readtable-setup (enable-standard-hu.dwim-syntaxes)))

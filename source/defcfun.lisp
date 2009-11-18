@@ -6,8 +6,6 @@
 
 (in-package :hu.dwim.computed-class)
 
-#.(file-header)
-
 (defmacro defcfun (name args &body body)
   "Just like a defun, but assumes that the code executed in its body does not have any sideeffects and based on this assumption memoizes the computed return values. The memoized entries are dropped if any computed-state is invalidated that was read while calculating the memoize entry in question."
   (destructuring-bind (name &key (memoize-test-fn 'equal) computed-in maximum-cache-entries

@@ -6,8 +6,6 @@
 
 (in-package :hu.dwim.computed-class)
 
-#.(file-header)
-
 ;;;;;;
 ;;; CLOS MOP related
 

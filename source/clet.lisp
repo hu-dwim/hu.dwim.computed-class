@@ -6,8 +6,6 @@
 
 (in-package :hu.dwim.computed-class)
 
-#.(file-header)
-
 ;;;;;;
 ;;; Standalone variables
 
@@ -15,8 +13,8 @@
                `(defmacro ,toplevel-name (name definition &optional (doc nil doc-p) &environment env)
                  "defcvar and defcparameters are like their cl counterparts with one VERY IMPORT difference: they can only be used as a global, rebinding is not possible!"
                  (assert (symbolp name))
-                 (let ((state-variable-name (concatenate-symbol "%" name "-state"))
-                       (state-accessor-name (concatenate-symbol name "-state")))
+                 (let ((state-variable-name (symbolicate "%" name '#:-state))
+                       (state-accessor-name (symbolicate name '#:-state)))
                    (assert (compute-as-form-p definition) () "You must specify a compute-as form as definition for defcvar")
                    `(progn
                      (,',definer-name ,state-variable-name
@@ -78,7 +76,7 @@
                           ;; closures)
                           ,@(loop for (name definition) :in vars
                                   for var :in state-variables
-                                  for state-name = (concatenate-symbol name "-state")
+                                  for state-name = (symbolicate name '#:-state)
                                   when var collect `(,state-name (,var))))
           ;; define the variables themselves
           (let* ,(loop for (name definition) :in vars

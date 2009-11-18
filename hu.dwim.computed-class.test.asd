@@ -10,13 +10,9 @@
 
 (defsystem :hu.dwim.computed-class.test
   :class hu.dwim.test-system
-  :author ("Attila Lendvai <attila.lendvai@gmail.com>"
-           "Tamás Borbély <tomi.borbely@gmail.com>"
-           "Levente Mészáros <levente.meszaros@gmail.com>")
-  :licence "BSD / Public domain"
   :description "Test suite for hu.dwim.computed-class"
   :depends-on (:hu.dwim.computed-class
-               :hu.dwim.stefil)
+               :hu.dwim.util.test)
   :components ((:module "test"
                 :components ((:file "package")
                              (:file "test" :depends-on ("package"))))))

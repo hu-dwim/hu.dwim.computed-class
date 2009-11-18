@@ -6,8 +6,6 @@
 
 (in-package :hu.dwim.computed-class)
 
-#.(file-header)
-
 (def constant +invalid-pulse+ -1
   "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
@@ -21,13 +19,13 @@
 
 (defparameter *default-universe* (make-computed-universe :name "Default computed universe"))
 
-(defun incf-pulse (computed-state)
+(def (function io) incf-pulse (computed-state)
   (declare (type computed-state computed-state)
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   ;; TODO think about fixnum overflow...
   (incf (cu-pulse (cs-universe computed-state))))
 
-(defun current-pulse (computed-state)
+(def (function io) current-pulse (computed-state)
   (declare (type computed-state computed-state)
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (cu-pulse (cs-universe computed-state)))
@@ -79,15 +77,16 @@
    nil
    :type t))
 
-(defun copy-place-independent-slots-of-computed-state (from into)
+(def (function io) copy-place-independent-slots-of-computed-state (from into)
   "Copy the slots of FROM into INTO that are not dependent on the place this computed slot has been assigned to."
   (declare (type computed-state from into))
   (macrolet ((x (&rest names)
-               `(progn
-                 ,@(loop for name :in names
-                         for accessor = (concatenate-symbol (find-package :hu.dwim.computed-class) ; *package* is not ok, because due to inlining it may get expanded in a different package
-                                                            "cs-" name)
-                         collect `(setf (,accessor into) (,accessor from))))))
+               ;; due to inlining it may get expanded in a different package than *package*, so bind it explicitly
+               (bind ((*package* (find-package :hu.dwim.computed-class)))
+                 `(progn
+                    ,@(loop for name :in names
+                            for accessor = (symbolicate '#:cs- name)
+                            collect `(setf (,accessor into) (,accessor from)))))))
     (x universe
        computed-at-pulse
        validated-at-pulse
@@ -107,13 +106,13 @@
   :create-struct #t
   :struct-options ((:conc-name rsc-)))
 
-(defun computed-state-value (computed-state)
+(def (function io) computed-state-value (computed-state)
   "Read the value, recalculate when needed."
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (%computed-state-value computed-state))
 
-(defun (setf computed-state-value) (new-value computed-state)
+(def (function io) (setf computed-state-value) (new-value computed-state)
   "Set the value, invalidate and recalculate as needed."
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
@@ -122,7 +121,7 @@
   (setf (%computed-state-value computed-state) new-value)
   (setf (cs-compute-as computed-state) nil))
 
-(defun %computed-state-value (computed-state)
+(def (function io) %computed-state-value (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
@@ -135,7 +134,7 @@
   (ensure-computed-state-is-valid computed-state)
   (cs-value computed-state))
 
-(defun (setf %computed-state-value) (new-value computed-state)
+(def (function io) (setf %computed-state-value) (new-value computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (let ((current-pulse (incf-pulse computed-state)))
@@ -146,12 +145,12 @@
     (setf (cs-validated-at-pulse computed-state) current-pulse)
     (setf (cs-value computed-state) new-value)))
 
-(defun computation-of-computed-state (computed-state)
+(def (function io) computation-of-computed-state (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (cs-compute-as computed-state))
 
-(defun (setf computation-of-computed-state) (new-value computed-state)
+(def (function io) (setf computation-of-computed-state) (new-value computed-state)
   (declare (type computed-state computed-state)
            (type function new-value)
            #.(optimize-declaration))
@@ -176,7 +175,7 @@
   (with-new-recompute-state-contex (:computed-state computed-state)
     (in-recompute-state-contex context
       (computed-class.debug "Recomputing slot ~A" computed-state)
-      (let* ((old-value (cs-value computed-state))
+      (bind ((old-value (cs-value computed-state))
              (new-value (aif (cs-compute-as computed-state)
                              (funcall it (cs-object computed-state) old-value)
                              (error "Now, this is bad: we encoutered an invalid computed-state ~A which is holding a constant and therefore has no compute-as lambda"
@@ -244,7 +243,7 @@
                                         while parent-context
                                         collect (rsc-computed-state parent-context))))))))))
 
-(defun invalidate-computed-state (computed-state &optional locally)
+(def (function io) invalidate-computed-state (computed-state &optional locally)
   "Invalidate the given COMPUTED-STATE. When LOCALLY is #t then this invalidation has only local effects on this computed-state and the dependent computed-states are not invalidated."
   (declare (type computed-state computed-state))
   (unless locally
@@ -266,21 +265,13 @@
 ;;;;;;
 ;;; Helper methods
 
-(defun primitive-p (object)
+(def (function io) primitive-p (object)
   (or (numberp object)
       (stringp object)
       (symbolp object)
       (characterp object)))
 
-(defun find-slot (class slot-name)
-  (declare (type standard-class class)
-           (type symbol slot-name)
-           #.(optimize-declaration))
-  (let ((slot (find slot-name (the list (class-slots class)) :key #'slot-definition-name :test #'eq)))
-    (assert slot () "Slot ~S not found in class ~S" slot-name class)
-    slot))
-
-(defun computed-state-or-nil (object slot)
+(def (function io) computed-state-or-nil (object slot)
   (declare (type computed-object object)
            (type computed-effective-slot-definition slot)
            #.(optimize-declaration))

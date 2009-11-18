@@ -6,9 +6,6 @@
 
 (in-package :hu.dwim.computed-class)
 
-(hu.dwim.syntax-sugar:register-readtable-for-swank
- '(:hu.dwim.computed-class :hu.dwim.computed-class-test) 'setup-readtable)
-
 ;; when inspecting a computed slot with a computed state inside it, then display the computed-state details
 (defmethod swank::slot-value-for-inspector ((class computed-class)
                                             (object computed-object)

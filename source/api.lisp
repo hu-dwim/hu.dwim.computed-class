@@ -6,8 +6,6 @@
 
 (in-package :hu.dwim.computed-class)
 
-#.(file-header)
-
 ;;;;;;
 ;;; Public interface
 
@@ -25,7 +23,7 @@
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
-  (let ((primitive-compute-as-macro-name (concatenate-symbol compute-as-macro-name "*"))
+  (let ((primitive-compute-as-macro-name (symbolicate compute-as-macro-name "*"))
         (docstring (concatenate 'string "Use this macro to set the value of a computed slot to a computation in the universe '" (string name) "'.")))
     `(eval-always
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)

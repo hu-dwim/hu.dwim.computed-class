@@ -6,8 +6,6 @@
 
 (in-package :hu.dwim.computed-class.test)
 
-(enable-sharp-boolean-syntax)
-
 (defsuite* (test :in root-suite))
 
 (define-computed-universe compute-as :name "Default computed-class-test universe")
