@@ -10,7 +10,7 @@
 ;;; Standalone variables
 
 (macrolet ((definer (toplevel-name definer-name)
-               `(defmacro ,toplevel-name (name definition &optional (doc nil doc-p) &environment env)
+               `(def (macro e) ,toplevel-name (name definition &optional (doc nil doc-p) &environment env)
                  "defcvar and defcparameters are like their cl counterparts with one VERY IMPORT difference: they can only be used as a global, rebinding is not possible!"
                  (assert (symbolp name))
                  (let ((state-variable-name (symbolicate "%" name '#:-state))
@@ -41,7 +41,7 @@
   (definer defcvar defvar)
   (definer defcparameter defparameter))
 
-(defmacro clet (vars &body body &environment env)
+(def (macro e) clet (vars &body body &environment env)
   "A let* with extra semantics to handle computed variables. For now see the code and the test file for details.
    Available bindings in the body:
      - NAME-state The place itself that holds the computed state, so you can 
@@ -101,6 +101,3 @@
                                               new-value)))
               (declare #+sbcl(sb-ext:unmuffle-conditions))
               ,@body)))))))
-
-
-

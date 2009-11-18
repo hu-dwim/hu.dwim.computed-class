@@ -13,23 +13,9 @@
         :hu.dwim.util
         :hu.dwim.logger
         :hu.dwim.syntax-sugar)
-  (:export #:defcclass
-           #:computed-class
-           #:computed-object
-           #:computed-direct-slot-definition
-           #:computed-effective-slot-definition
-           #:computed-class*
-           #:define-computed-universe
-           #:make-computed-universe
-           #:-current-value-
-           #:make-slot-uncomputed
-           #:clet
-           #:defcvar
-           #:defcparameter
-           #:defcfun
-           #:computed-state-value
-           #:computation-of-computed-state)
-  ;; for debug purposes
+  (:export #:make-computed-universe
+           #:-current-value-)
+  ;; exported only for debugging purposes (TODO for debugging? delme? maybe export a function called import-debugging-symbols?)
   (:export #:computed-state-for
            #:invalidate-computed-slot
            #:invalidate-computed-state

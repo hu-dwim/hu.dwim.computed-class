@@ -8,10 +8,10 @@
 
 (progn
   ;; TODO: this should be in closer-mop?
-  (defclass test ()
+  (def class test ()
     (test-slot))
 
-  (defparameter +unbound-slot-value+
+  (def special-variable +unbound-slot-value+
     (let ((test (make-instance 'test)))
       (standard-instance-access test
                                 (slot-definition-location

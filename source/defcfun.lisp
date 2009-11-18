@@ -6,7 +6,7 @@
 
 (in-package :hu.dwim.computed-class)
 
-(defmacro defcfun (name args &body body)
+(def (macro e) defcfun (name args &body body)
   "Just like a defun, but assumes that the code executed in its body does not have any sideeffects and based on this assumption memoizes the computed return values. The memoized entries are dropped if any computed-state is invalidated that was read while calculating the memoize entry in question."
   (destructuring-bind (name &key (memoize-test-fn 'equal) computed-in maximum-cache-entries
                             (hash-table-factory 'make-hash-table))
@@ -44,7 +44,7 @@
                           (values-list (computed-state-value ,state))))
                       ,memoize-table))))))))
 
-(defun ensure-&rest-in-lambda-list (lambda-list)
+(def function ensure-&rest-in-lambda-list (lambda-list)
   (let ((&rest-name nil))
     (values (loop for cell = lambda-list :then (cdr cell)
                   while cell

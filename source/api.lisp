@@ -9,17 +9,17 @@
 ;;;;;;
 ;;; Public interface
 
-(defmacro defcclass (name superclasses slots &rest options)
+(def (macro e) defcclass (name superclasses slots &rest options)
   `(defclass ,name ,superclasses , slots
     ,@(append (unless (find :metaclass options :key 'first)
                 '((:metaclass computed-class)))
               options)))
 
-(defmacro define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
-                                                                       (format nil "~S" compute-as-macro-name)))
-                                                          (default-recomputation-mode :on-demand)
-                                                          (self-variable-name '-self-)
-                                                          (current-value-variable-name '-current-value-))
+(def (macro e) define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
+                                                                            (format nil "~S" compute-as-macro-name)))
+                                                               (default-recomputation-mode :on-demand)
+                                                               (self-variable-name '-self-)
+                                                               (current-value-variable-name '-current-value-))
   "Use define-computed-universe to define a universe glueing together computed slots. It will define a macro with the given name that can be used to initialize computed slots with a computation."
   ;; mark on the symbol that this is a compute-as macro
   (declare (type symbol compute-as-macro-name))
@@ -59,13 +59,13 @@
   (declare (ignore name default-recomputation-mode self-variable-name current-value-variable-name))
   `(define-computed-universe ,compute-as-macro-name ,@args))
 
-(defgeneric computed-value-equal-p (old-value new-value)
+(def generic computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")
   (:method (old-value new-value)
            #f))
 
 ;; TODO these should probably be simple defun's. who would ever want to override them and how? also they are suboptimal.
-(defgeneric invalidate-computed-slot (object slot)
+(def generic invalidate-computed-slot (object slot)
   (:documentation "Forces the recalculation of a slot on the next slot-value or accessor call.")
   (:method ((object computed-object) (slot-name symbol))
            (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
@@ -76,7 +76,7 @@
                  (when (slot-boundp-using-class (class-of object) object slot)
                    (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object))))))
 
-(defgeneric computed-slot-valid-p (object slot)
+(def generic computed-slot-valid-p (object slot)
   (:documentation "Checks if the given slot value is invalid or not.")
   (:method ((object computed-object) (slot-name symbol))
            (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
@@ -86,7 +86,7 @@
                  (computed-state-valid-p computed-state)
                  #t))))
 
-(defgeneric make-slot-uncomputed (object slot)
+(def (generic e) make-slot-uncomputed (object slot)
   (:documentation "Makes the slot a constant slot with respect to other computed slots. The current value will not be racalculated even if it's invalid.")
   (:method ((object computed-object) (slot-name symbol))
            (make-slot-uncomputed object (find-slot (class-of object) slot-name)))
@@ -95,7 +95,7 @@
              (when computed-state
                (setf-standard-instance-access-form (cs-value computed-state) object slot)))))
 
-(defgeneric recompute-slot (object slot)
+(def generic recompute-slot (object slot)
   (:documentation "Enforces the recomputation of the given slot.")
   (:method ((object computed-object) (slot-name symbol))
            (recompute-slot object (find-slot (class-of object) slot-name)))

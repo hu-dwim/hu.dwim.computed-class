@@ -9,22 +9,22 @@
 ;;;;;;
 ;;; CLOS MOP related
 
-(defclass computed-class (standard-class)
+(def (class e) computed-class (standard-class)
   ()
   (:documentation "A computed class might have slots which are computed based on other computed slots in other computed class instances. A slot of a computed class is either a standard slot or a computed slot and only class redefinition may change this. Slots which are computed will be tracked, invalidated and/or recomputed whenever a computed slot value changes which were used last time when the slot was computed. The used computed slots are collected runtime and per instance. Moreover different instances might compute the same slots in different ways."))
 
-(defclass computed-class* (computed-class)
+(def (class e) computed-class* (computed-class)
   ()
   (:documentation "Just like computed-class but the classes having this metaclass will have custom accessors. This slows down loading but speeds up the accessors quite a bit."))
 
 (defmethod validate-superclass ((subclass computed-class) (superclass standard-class))
   (subtypep (class-of subclass) (class-of superclass)))
 
-(defclass computed-object ()
+(def (class e) computed-object ()
   ()
   (:documentation "This is the base class for all computed classes. The class need not be listed in the direct supers when defining a computed class because the metaclass makes sure it's among them."))
 
-(defclass computed-slot-definition (standard-slot-definition)
+(def class computed-slot-definition (standard-slot-definition)
   ((computed-in
     :initform nil
     :type symbol
@@ -41,17 +41,17 @@
     :accessor computed-writers-of
     :initarg :computed-writers)))
 
-(defclass computed-direct-slot-definition (computed-slot-definition standard-direct-slot-definition)
+(def (class e) computed-direct-slot-definition (computed-slot-definition standard-direct-slot-definition)
   ())
 
-(defclass computed-direct-slot-definition-with-custom-accessors (computed-direct-slot-definition)
+(def class computed-direct-slot-definition-with-custom-accessors (computed-direct-slot-definition)
   ()
   (:documentation "This direct slot definition converts the :readers and :writers initargs to :computed-readers and :computed-writers effectively disabling the generation of default accessors."))
 
-(defclass computed-effective-slot-definition (computed-slot-definition standard-effective-slot-definition)
+(def (class e) computed-effective-slot-definition (computed-slot-definition standard-effective-slot-definition)
   ())
 
-(defclass functional-slot-definition (standard-slot-definition)
+(def class functional-slot-definition (standard-slot-definition)
   ((slot-value-function
     :type function
     :accessor slot-value-function-of
@@ -62,10 +62,10 @@
     :initarg :setf-slot-value-function))
   (:default-initargs :allocation :class))
 
-(defclass functional-direct-slot-definition (functional-slot-definition standard-direct-slot-definition)
+(def class functional-direct-slot-definition (functional-slot-definition standard-direct-slot-definition)
   ())
 
-(defclass functional-effective-slot-definition (functional-slot-definition standard-effective-slot-definition)
+(def class functional-effective-slot-definition (functional-slot-definition standard-effective-slot-definition)
   ())
 
 (defmethod shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names
@@ -279,17 +279,17 @@
   (declare #.(optimize-declaration))
   (error "The functional slot ~A in class ~A cannot be unbound." (slot-definition-name slot) (class-name class)))
 
-(defclass computed-accessor-method (standard-accessor-method)
+(def class computed-accessor-method (standard-accessor-method)
   ((effective-slot
     :initarg :effective-slot
     :accessor effective-slot-of
     :documentation "This method was generatated or validated using this effective slot object."))
   (:documentation "computed-class generates accessors with this class."))
 
-(defclass computed-reader-method (computed-accessor-method standard-reader-method)
+(def class computed-reader-method (computed-accessor-method standard-reader-method)
   ())
 
-(defclass computed-writer-method (computed-accessor-method standard-writer-method)
+(def class computed-writer-method (computed-accessor-method standard-writer-method)
   ())
 
 #+debug
@@ -366,6 +366,7 @@
           (ensure-accessor-for class writer effective-slot :writer))))
 
 (defmethod finalize-inheritance :after ((class computed-class*))
+  ;; TODO this is most probably not the right way to install specialized accessors...
   (ensure-accessors-for class))
 
 ;;; make sure computed-object is among the supers (thanks to Pascal Constanza)

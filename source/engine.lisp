@@ -12,12 +12,12 @@
 ;;;;;;
 ;;; Computed states
 
-(defstruct (computed-universe (:conc-name cu-))
+(def structure (computed-universe (:conc-name cu-))
   "This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor. On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original slot was last computed then this counter will not change. The first valid pulse value is 0."
   (pulse 0 :type integer)
   (name nil :type (or null string)))
 
-(defparameter *default-universe* (make-computed-universe :name "Default computed universe"))
+(def special-variable *default-universe* (make-computed-universe :name "Default computed universe"))
 
 (def (function io) incf-pulse (computed-state)
   (declare (type computed-state computed-state)
@@ -30,7 +30,7 @@
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (cu-pulse (cs-universe computed-state)))
 
-(defstruct (computed-state (:conc-name cs-) (:print-object print-computed-state))
+(def structure (computed-state (:conc-name cs-) (:print-object print-computed-state))
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
   (universe
    nil
@@ -106,7 +106,7 @@
   :create-struct #t
   :struct-options ((:conc-name rsc-)))
 
-(def (function io) computed-state-value (computed-state)
+(def (function ioe) computed-state-value (computed-state)
   "Read the value, recalculate when needed."
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
@@ -145,7 +145,7 @@
     (setf (cs-validated-at-pulse computed-state) current-pulse)
     (setf (cs-value computed-state) new-value)))
 
-(def (function io) computation-of-computed-state (computed-state)
+(def (function ioe) computation-of-computed-state (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (cs-compute-as computed-state))
@@ -157,7 +157,7 @@
   (setf (cs-compute-as computed-state) new-value)
   (invalidate-computed-state computed-state #t))
 
-(defun ensure-computed-state-is-valid (computed-state)
+(def function ensure-computed-state-is-valid (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (multiple-value-bind (valid-p newer-computed-state)
@@ -169,7 +169,7 @@
       (recompute-computed-state computed-state)))
   (values))
 
-(defun recompute-computed-state (computed-state)
+(def function recompute-computed-state (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (with-new-recompute-state-contex (:computed-state computed-state)
@@ -196,7 +196,7 @@
 
 (locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 ;; TODO: the muffle is only needed because pulse is not fixnum for now
-(defun computed-state-valid-p (computed-state)
+(def function computed-state-valid-p (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (if (eq :always (cs-recomputation-mode computed-state))
@@ -228,7 +228,7 @@
                 (invalidate-computed-state computed-state #t)))
           (values valid-p newer-computed-state))))))
 
-(defun check-circularity (computed-state)
+(def function check-circularity (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
@@ -251,7 +251,7 @@
   (setf (cs-computed-at-pulse computed-state) #.+invalid-pulse+)
   (setf (cs-validated-at-pulse computed-state) #.+invalid-pulse+))
 
-(defun print-computed-state (computed-state stream)
+(def function print-computed-state (computed-state stream)
   (declare (type computed-state computed-state))
   (let* ((name (if (eq (cs-kind computed-state) 'object-slot)
                    (awhen (cs-slot computed-state)
@@ -281,18 +281,18 @@
                  (computed-state-p result))
         result))))
 
-(defun compute-as-form-p (form)
+(def function compute-as-form-p (form)
   "To identify forms that create a computed state, IOW all kind of (compute-as ...) forms."
   (and (consp form)
        (symbolp (first form))
        (get (first form) 'computed-as-macro-p)))
 
-(defun primitive-compute-as-form-p (form)
+(def function primitive-compute-as-form-p (form)
   "To identify (compute-as* ...) forms, that are the primitive computed state factories of a computed universe."
   (and (compute-as-form-p form)
        (eq (first form) (get (first form) 'primitive-compute-as-macro))))
 
-(defun primitive-compute-as-form-of (input-form &optional env)
+(def function primitive-compute-as-form-of (input-form &optional env)
   (if (primitive-compute-as-form-p input-form)
       input-form
       (loop with form = input-form
@@ -304,7 +304,7 @@
                  (return form))
             finally (error "Form ~S can not be macroexpanded into a primitive-compute-as-form-p. This should not happen." input-form))))
 
-(defun ensure-arguments-for-primitive-compute-as-form (form &rest args)
+(def function ensure-arguments-for-primitive-compute-as-form (form &rest args)
   (let ((form-args (copy-list (second form))))
     (loop for (indicator value) :on args :by #'cddr do
           (setf (getf form-args indicator) value))
