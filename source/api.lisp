@@ -15,6 +15,12 @@
                 '((:metaclass computed-class)))
               options)))
 
+(def (definer e :available-flags "e") computed-class (name superclasses slots &rest options)
+  `(progn
+     (defcclass ,name ,superclasses ,slots ,@options)
+     ,@(when (getf -options- :export)
+         `((export ',name)))))
+
 (def (macro e) define-computed-universe (compute-as-macro-name &key (name (let ((*package* (find-package "KEYWORD")))
                                                                             (format nil "~S" compute-as-macro-name)))
                                                                (default-recomputation-mode :on-demand)
