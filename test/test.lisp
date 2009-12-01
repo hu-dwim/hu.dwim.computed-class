@@ -6,15 +6,15 @@
 
 (in-package :hu.dwim.computed-class.test)
 
-(defsuite* (test :in root-suite))
+(def suite* (test :in root-suite))
 
-(define-computed-universe compute-as :name "Default computed-class-test universe")
-(define-computed-universe separated-compute-as :name "Separated computed-class-test universe")
+(def computed-universe compute-as :name "Default computed-class-test universe")
+(def computed-universe separated-compute-as :name "Separated computed-class-test universe")
 
 ;;;;;;
 ;;; defclass tests
 
-(deftest defclass1 ()
+(def test defclass1 ()
   (finishes
     (defclass computed-1 ()
       ()
@@ -53,7 +53,11 @@
         (is (not (computed-slot-p 'a)))
         (is (computed-slot-p 'c))))))
 
-(deftest subclassing1 ()
+(def generic a-of (instance))
+
+(def generic b-of (instance))
+
+(def test subclassing1 ()
   (defclass super ()
     ((a
       :accessor a-of
@@ -66,7 +70,7 @@
   (defclass level0-1 (super)
     ((x))
     (:metaclass computed-class*))
-  
+
   (defclass level0-2 (super)
     ((y))
     (:metaclass computed-class*))
@@ -91,7 +95,7 @@
 ;;;;;;
 ;;; Instance tests
 
-(defclass computed-test ()
+(def class computed-test ()
   ((slot-a
     :accessor slot-a-of
     :initarg :slot-a
@@ -102,7 +106,7 @@
     :computed-in compute-as))
   (:metaclass computed-class*))
 
-(deftest boundp1 ()
+(def test boundp1 ()
   (let ((object (make-instance 'computed-test)))
     (signals unbound-slot (slot-a-of object))
     (setf (slot-a-of object) (compute-as 1))
@@ -115,7 +119,7 @@
     (is (not (slot-boundp object 'slot-a)))
     (signals unbound-slot (slot-a-of object))))
 
-(deftest compute1 ()
+(def test compute1 ()
   (let ((object (make-instance 'computed-test
                                :slot-a (compute-as 1)
                                :slot-b (compute-as (1+ (slot-a-of -self-))))))
@@ -125,7 +129,7 @@
     (is (= 2 (slot-a-of object)))
     (is (= 3 (slot-b-of object)))))
 
-(deftest compute2 ()
+(def test compute2 ()
   (let* ((object-1 (make-instance 'computed-test
                                   :slot-a (compute-as 1)
                                   :slot-b (compute-as (1+ (slot-a-of -self-)))))
@@ -136,7 +140,7 @@
     (setf (slot-a-of object-1) 2)
     (is (= 6 (slot-b-of object-2)))))
 
-(deftest compute3 ()
+(def test compute3 ()
   (let* ((object-1 (make-instance 'computed-test
                                   :slot-b (compute-as (1+ (slot-a-of -self-)))))
          (object-2 (make-instance 'computed-test
@@ -152,7 +156,7 @@
     (is (= 5 (slot-a-of object-2)))
     (is (= 10 (slot-b-of object-2)))))
 
-(deftest compute4 ()
+(def test compute4 ()
   (setf (find-class 'sbcl-class-cache-computed-test) nil)
   (defclass sbcl-class-cache-computed-test ()
     ((slot-a :accessor slot-a-of :initarg :slot-a)
@@ -176,9 +180,9 @@
 ;;;;;;
 ;;; always recomputed stuff
 
-(defparameter *always-compute-global-counter* 0)
+(def special-variable *always-compute-global-counter* 0)
 
-(deftest always-compute-with-object ()
+(def test always-compute-with-object ()
   (setf *always-compute-global-counter* 0)
   (let* ((object (make-instance 'computed-test
                                :slot-a (compute-as* (:recomputation-mode :always)
@@ -195,7 +199,7 @@
 
     (is (null (cs-depends-on slot-a-state)))))
 
-(deftest always-compute-with-clet ()
+(def test always-compute-with-clet ()
   (setf *always-compute-global-counter* 0)
   (clet ((a (compute-as 42))
          (b (compute-as* (:recomputation-mode :always)
@@ -214,7 +218,7 @@
 ;;;;;;
 ;;; Reconfiguration tests
 
-(deftest reconfigure1 ()
+(def test reconfigure1 ()
   (let* ((object (make-instance 'computed-test)))
     (setf (slot-a-of object) nil)
     (setf (slot-b-of object) nil)
@@ -228,7 +232,7 @@
     (setf (slot-b-of object) (compute-as (not (slot-a-of -self-))))
     (is (not (null (slot-b-of object))))))
 
-(deftest reconfigure2 ()
+(def test reconfigure2 ()
   (let ((object (make-instance 'computed-test)))
     (flet ((current-pulse ()
              (awhen (computed-state-or-nil object (find-slot (class-of object) 'slot-b))
@@ -254,7 +258,7 @@
 ;;;;;;
 ;;; clet tests
 
-(deftest clet1 ()
+(def test clet1 ()
   (clet ((a (compute-as 1))
          (b (compute-as (1+ a)))
          (c (compute-as (+ a b))))
@@ -270,7 +274,7 @@
     (setf a 43)
     (is (= c 87))))
 
-(deftest clet2 ()
+(def test clet2 ()
   (clet ((a 42)
          (b (compute-as (1+ a)))
          (c (compute-as (1+ b))))
@@ -287,7 +291,7 @@
     (is (= b 3))
     (is (= c 4))))
 
-(deftest clet3 ()
+(def test clet3 ()
   ;; same as computed-class/clet/2, but with variable capturing
   (let (a-reader
         a-writer
@@ -315,7 +319,7 @@
     (is (= (funcall b-reader) 3))
     (is (= (funcall c-reader) 4))))
 
-(deftest clet4 ()
+(def test clet4 ()
   (clet ((a (compute-as 2))
          (object (make-instance 'computed-test
                                 :slot-a (compute-as (1+ a))
@@ -338,7 +342,7 @@ dragons be here :)
 
 (defcparameter foo (compute-as 50)) ;; we must define it on toplevel once, so the resulting symbol will be dynamic
 
-(deftest (clet-global1 :compile-before-run #f) ()
+(def test (clet-global1 :compile-before-run #f) ()
   (setf foo (compute-as 50))
   
   (clet ((a (compute-as (1+ foo)))
@@ -354,7 +358,7 @@ dragons be here :)
       (is (= 2 a)))))
 |#
 
-(deftest pulse1 ()
+(def test pulse1 ()
   (let* ((object (make-instance 'computed-test
                                 :slot-a (compute-as 1)
                                 :slot-b (compute-as (1+ (slot-a-of -self-))))))
@@ -367,7 +371,7 @@ dragons be here :)
         (slot-b-of object)
         (is (= (current-pulse) (+ 1 pulse)))))))
 
-(deftest circularity1 ()
+(def test circularity1 ()
   (let* ((circularity #f)
          (flag #f)
          (object (make-instance 'computed-test
@@ -399,7 +403,7 @@ dragons be here :)
 ;;;;;;
 ;;; universe-separation tests
 
-(deftest universe-separation1 ()
+(def test universe-separation1 ()
   (clet ((a (compute-as 1))
          (b (separated-compute-as (1+ a)))
          (c (compute-as (+ a b))))
@@ -442,7 +446,7 @@ dragons be here :)
                                                    (t arg)))))))))
 
   ;; we need to tell Stefil to compile the test body at definition time, so it can see the lexical bindings
-  (deftest (defcfun1 :compile-before-run #f) ()
+  (def test (defcfun1 :compile-before-run #f) ()
 
     (setf run-counter 0)
     (setf words-to-be-uppercased '())
@@ -495,14 +499,14 @@ dragons be here :)
 (defcfun (fun-with-multiple-values :computed-in compute-as) (some arg &key key)
   (values key arg some))
 
-(deftest defcfun2 ()
+(def test defcfun2 ()
   (is (equal (list 3 2 1) (multiple-value-list (fun-with-multiple-values 1 2 :key 3)))))
 
 
 ;;;;;;
 ;;; Timing tests
 
-(defclass standard-test ()
+(def class standard-test ()
   ((slot-a
     :accessor slot-a-of
     :initarg :slot-a
@@ -512,7 +516,7 @@ dragons be here :)
     :initarg :slot-b
     :initform 0)))
 
-(deftest timing1 ()
+(def test timing1 ()
   (flet ((measure (object message)
            (setf (slot-a-of object) 0)
            #+sbcl(sb-ext:gc :full t)
@@ -529,7 +533,7 @@ dragons be here :)
                             :slot-b (compute-as (1+ (slot-a-of -self-))))
              "*** Reader, no computation, computed accessor: ")))
 
-(deftest timing2 ()
+(def test timing2 ()
   (flet ((measure (object message)
            #+sbcl(sb-ext:gc :full t)
            (terpri *debug-io*)
