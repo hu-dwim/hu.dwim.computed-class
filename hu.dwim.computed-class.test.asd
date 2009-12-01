@@ -10,9 +10,8 @@
 
 (defsystem :hu.dwim.computed-class.test
   :class hu.dwim.test-system
-  :description "Test suite for hu.dwim.computed-class"
   :depends-on (:hu.dwim.computed-class
-               :hu.dwim.util.test)
+               :hu.dwim.stefil+hu.dwim.def+swank)
   :components ((:module "test"
                 :components ((:file "package")
                              (:file "test" :depends-on ("package"))))))

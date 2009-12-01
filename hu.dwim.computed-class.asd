@@ -10,11 +10,7 @@
 
 (defsystem :hu.dwim.computed-class
   :class hu.dwim.system
-  :author ("Attila Lendvai <attila.lendvai@gmail.com>"
-           "Tamás Borbély <tomi.borbely@gmail.com>"
-           "Levente Mészáros <levente.meszaros@gmail.com>")
-  :licence "BSD / Public domain"
-  :description "Constraint based change propagation"
+  :description "Constraint based change propagation for class slots, lexical variables, function return values and reified cells."
   :depends-on (:hu.dwim.def+hu.dwim.common
                :hu.dwim.logger
                :hu.dwim.syntax-sugar
