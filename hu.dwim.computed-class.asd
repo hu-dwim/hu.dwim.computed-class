@@ -20,7 +20,6 @@
                              (:file "clet" :depends-on ("engine"))
                              (:file "util" :depends-on ("duplicates" "logger"))
                              (:file "defcfun" :depends-on ("engine"))
-                             (:file "duplicates" :depends-on ("package"))
                              (:file "engine" :depends-on ("util"))
                              (:file "logger" :depends-on ("package"))
                              (:file "mop" :depends-on ("engine"))
