@@ -18,7 +18,7 @@
   :components ((:module "source"
                 :components ((:file "api" :depends-on ("engine" "mop"))
                              (:file "clet" :depends-on ("engine"))
-                             (:file "util" :depends-on ("duplicates" "logger"))
+                             (:file "util" :depends-on ("logger"))
                              (:file "defcfun" :depends-on ("engine"))
                              (:file "engine" :depends-on ("util"))
                              (:file "logger" :depends-on ("package"))
