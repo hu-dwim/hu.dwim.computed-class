@@ -319,9 +319,9 @@
           #+debug(incf *kept-accessors*)
           (setf (effective-slot-of current-method) effective-slot))
         (progn
-          (computed-class.debug "Ensuring new ~A for class ~A, slot ~S, effective-slot ~A, slot-location ~A"
-                                (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
-                                effective-slot (slot-definition-location effective-slot))          
+          (computed-class.dribble "Ensuring new ~A for class ~A, slot ~S, effective-slot ~A, slot-location ~A"
+                                  (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
+                                  effective-slot (slot-definition-location effective-slot))          
           #+debug(incf *new-accessors*)
           (let  ((method (ensure-method gf
                                         (ecase type
