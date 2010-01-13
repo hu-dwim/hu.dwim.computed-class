@@ -125,12 +125,12 @@
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
-    (in-recompute-state-contex context
-      (let ((computed-state-being-recomputed (rsc-computed-state context)))
-        (when (and (not (eq :always (cs-recomputation-mode computed-state-being-recomputed)))
-                   (eq (cs-universe computed-state-being-recomputed)
-                       (cs-universe computed-state)))
-          (push computed-state (rsc-used-computed-states context))))))
+    (bind ((context *recompute-state-contex*)
+           (computed-state-being-recomputed (rsc-computed-state context)))
+      (when (and (not (eq :always (cs-recomputation-mode computed-state-being-recomputed)))
+                 (eq (cs-universe computed-state-being-recomputed)
+                     (cs-universe computed-state)))
+        (push computed-state (rsc-used-computed-states context)))))
   (ensure-computed-state-is-valid computed-state)
   (cs-value computed-state))
 
@@ -173,7 +173,7 @@
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (with-new-recompute-state-contex (:computed-state computed-state)
-    (in-recompute-state-contex context
+    (bind ((context *recompute-state-contex*))
       (computed-class.dribble "Recomputing slot ~A" computed-state)
       (bind ((old-value (cs-value computed-state))
              (new-value (aif (cs-compute-as computed-state)
@@ -232,7 +232,7 @@
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (when (has-recompute-state-contex)
-    (in-recompute-state-contex context
+    (bind ((context *recompute-state-contex*))
       (loop for parent-context = context :then (rsc-parent-context parent-context)
             while parent-context
             do (let ((parent-computed-state (rsc-computed-state parent-context)))
