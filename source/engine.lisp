@@ -13,7 +13,14 @@
   "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
 ;;;;;;
-;;; Computed states
+;;; Computed object
+
+(def (class e) computed-object ()
+  ()
+  (:documentation "This is the base class for all computed classes. The class need not be listed in the direct supers when defining a computed class because the metaclass makes sure it's among them."))
+
+;;;;;;
+;;; Computed state
 
 (def structure (computed-universe (:conc-name cu-))
   "This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor. On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original slot was last computed then this counter will not change. The first valid pulse value is 0."

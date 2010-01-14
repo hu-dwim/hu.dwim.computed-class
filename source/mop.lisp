@@ -20,10 +20,6 @@
 (def method validate-superclass ((subclass computed-class) (superclass standard-class))
   (subtypep (class-of subclass) (class-of superclass)))
 
-(def (class e) computed-object ()
-  ()
-  (:documentation "This is the base class for all computed classes. The class need not be listed in the direct supers when defining a computed class because the metaclass makes sure it's among them."))
-
 (def class computed-slot-definition (standard-slot-definition)
   ((computed-in
     :initform nil
