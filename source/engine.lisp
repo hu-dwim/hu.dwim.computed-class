@@ -6,6 +6,9 @@
 
 (in-package :hu.dwim.computed-class)
 
+;;;;;;
+;;; Constants
+
 (def constant +invalid-pulse+ -1
   "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
@@ -169,7 +172,7 @@
       (recompute-computed-state computed-state)))
   (values))
 
-(def function recompute-computed-state (computed-state)
+(def (function e) recompute-computed-state (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
   (with-new-recompute-state-contex (:computed-state computed-state)
@@ -243,7 +246,7 @@
                                         while parent-context
                                         collect (rsc-computed-state parent-context))))))))))
 
-(def (function io) invalidate-computed-state (computed-state &optional locally)
+(def (function ioe) invalidate-computed-state (computed-state &optional locally)
   "Invalidate the given COMPUTED-STATE. When LOCALLY is #t then this invalidation has only local effects on this computed-state and the dependent computed-states are not invalidated."
   (declare (type computed-state computed-state))
   (unless locally
@@ -310,4 +313,3 @@
           (setf (getf form-args indicator) value))
     `(,(first form) ,form-args
       ,@(cddr form))))
-

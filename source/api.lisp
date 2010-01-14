@@ -34,10 +34,10 @@
     `(eval-always
       (setf (get ',compute-as-macro-name 'computed-as-macro-p) t)
       (setf (get ',compute-as-macro-name 'primitive-compute-as-macro) ',primitive-compute-as-macro-name)
-      
+
       (setf (get ',primitive-compute-as-macro-name 'computed-as-macro-p) t)
       (setf (get ',primitive-compute-as-macro-name 'primitive-compute-as-macro) ',primitive-compute-as-macro-name)
-      
+
       (unless (get ',primitive-compute-as-macro-name 'computed-universe)
         (setf (get ',primitive-compute-as-macro-name 'computed-universe) (make-computed-universe :name ,name)))
       (defmacro ,primitive-compute-as-macro-name ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode) (universe)) &body form)
@@ -68,47 +68,47 @@
 (def generic computed-value-equal-p (old-value new-value)
   (:documentation "When a new value is set in a computed slot, then this method is used to decide whether dependent slots should be recalculated or not.")
   (:method (old-value new-value)
-           #f))
+    #f))
 
 ;; TODO these should probably be simple defun's. who would ever want to override them and how? also they are suboptimal.
-(def generic invalidate-computed-slot (object slot)
+(def (generic e) invalidate-computed-slot (object slot)
   (:documentation "Forces the recalculation of a slot on the next slot-value or accessor call.")
   (:method ((object computed-object) (slot-name symbol))
-           (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
+    (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (let ((computed-state (computed-state-or-nil object slot)))
-             (if computed-state
-                 (invalidate-computed-state computed-state)
-                 (when (slot-boundp-using-class (class-of object) object slot)
-                   (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object))))))
+    (let ((computed-state (computed-state-or-nil object slot)))
+      (if computed-state
+          (invalidate-computed-state computed-state)
+          (when (slot-boundp-using-class (class-of object) object slot)
+            (error "The slot ~A of ~A is not computed while invalidate-computed-slot was called on it" slot object))))))
 
-(def generic computed-slot-valid-p (object slot)
+(def (generic e) computed-slot-valid-p (object slot)
   (:documentation "Checks if the given slot value is invalid or not.")
   (:method ((object computed-object) (slot-name symbol))
-           (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
+    (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (let ((computed-state (computed-state-or-nil object slot)))
-             (if computed-state
-                 (computed-state-valid-p computed-state)
-                 #t))))
+    (let ((computed-state (computed-state-or-nil object slot)))
+      (if computed-state
+          (computed-state-valid-p computed-state)
+          #t))))
 
 (def (generic e) make-slot-uncomputed (object slot)
   (:documentation "Makes the slot a constant slot with respect to other computed slots. The current value will not be racalculated even if it's invalid.")
   (:method ((object computed-object) (slot-name symbol))
-           (make-slot-uncomputed object (find-slot (class-of object) slot-name)))
+    (make-slot-uncomputed object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (let ((computed-state (computed-state-or-nil object slot)))
-             (when computed-state
-               (setf-standard-instance-access-form (cs-value computed-state) object slot)))))
+    (let ((computed-state (computed-state-or-nil object slot)))
+      (when computed-state
+        (setf-standard-instance-access-form (cs-value computed-state) object slot)))))
 
-(def generic recompute-slot (object slot)
+(def (generic e) recompute-slot (object slot)
   (:documentation "Enforces the recomputation of the given slot.")
   (:method ((object computed-object) (slot-name symbol))
-           (recompute-slot object (find-slot (class-of object) slot-name)))
+    (recompute-slot object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
-           (let ((computed-state (computed-state-or-nil object slot)))
-             (if computed-state
-                 (recompute-computed-state computed-state)
-                 (if (slot-boundp-using-class (class-of object) object slot)
-                     (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)
-                     (slot-unbound (class-of object) object (slot-definition-name slot)))))))
+    (let ((computed-state (computed-state-or-nil object slot)))
+      (if computed-state
+          (recompute-computed-state computed-state)
+          (if (slot-boundp-using-class (class-of object) object slot)
+              (error "The slot ~A of ~A is not computed while recompute-slot was called on it" slot object)
+              (slot-unbound (class-of object) object (slot-definition-name slot)))))))
