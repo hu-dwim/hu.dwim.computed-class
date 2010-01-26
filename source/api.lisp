@@ -85,7 +85,7 @@
 (def (generic e) computed-slot-valid-p (object slot)
   (:documentation "Checks if the given slot value is invalid or not.")
   (:method ((object computed-object) (slot-name symbol))
-    (invalidate-computed-slot object (find-slot (class-of object) slot-name)))
+    (computed-slot-valid-p object (find-slot (class-of object) slot-name)))
   (:method ((object computed-object) (slot computed-effective-slot-definition))
     (let ((computed-state (computed-state-or-nil object slot)))
       (if computed-state

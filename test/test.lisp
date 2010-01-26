@@ -87,7 +87,7 @@
       :accessor a-of
       :initform (compute-as 1)))
     (:metaclass computed-class*))
-  
+
   (let ((sub (make-instance 'sub)))
     (is (= (a-of sub) 1))
     (is (= (b-of sub) 0))))
@@ -105,6 +105,16 @@
     :initarg :slot-b
     :computed-in compute-as))
   (:metaclass computed-class*))
+
+(def test valid ()
+  (let ((object (make-instance 'computed-test)))
+    (is (computed-slot-valid-p object 'slot-a))
+    (setf (slot-a-of object) 1)
+    (is (not (computed-slot-valid-p object 'slot-a)))
+    (setf (slot-a-of object) 1)
+    (is (computed-slot-valid-p object 'slot-a))
+    (invalidate-computed-slot object 'slot-a)
+    (is (not (computed-slot-valid-p object 'slot-a)))))
 
 (def test boundp1 ()
   (let ((object (make-instance 'computed-test)))
@@ -344,7 +354,7 @@ dragons be here :)
 
 (def test (clet-global1 :compile-before-run #f) ()
   (setf foo (compute-as 50))
-  
+
   (clet ((a (compute-as (1+ foo)))
          (object (make-instance 'computed-test
                                 :slot-a (compute-as (1+ a)))))
@@ -392,7 +402,7 @@ dragons be here :)
     (invalidate-computed-slot object 'slot-b)
     (is (null (slot-a-of object)))
     (is (null (slot-b-of object)))
-    
+
     (setf circularity #t)
     (invalidate-computed-slot object 'slot-a)
     (invalidate-computed-slot object 'slot-b)
@@ -451,10 +461,10 @@ dragons be here :)
     (setf run-counter 0)
     (setf words-to-be-uppercased '())
     (setf integers-to-be-factorized '())
-    
+
     (let ((test-datum "~A-~A-~A")
           (test-args (list "foo" "bar" 42)))
-      
+
       (macrolet ((is* (expected)
                    `(is (string= ,expected (apply 'format* test-datum test-args)))))
         (is* "foo-bar-42")
