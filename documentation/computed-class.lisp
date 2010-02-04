@@ -6,7 +6,7 @@
 
 (in-package :hu.dwim.computed-class.documentation)
 
-(def project :hu.dwim.perec :path (system-pathname :hu.dwim.perec))
+(def project :hu.dwim.computed-class :path (system-pathname :hu.dwim.computed-class))
 
 (def book user-guide (:title "User guide")
   (chapter (:title "Introduction")
