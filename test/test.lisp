@@ -8,8 +8,11 @@
 
 (def suite* (test :in root-suite))
 
-(def computed-universe compute-as :name "Default computed-class-test universe")
-(def computed-universe separated-compute-as :name "Separated computed-class-test universe")
+(def computed-universe compute-as
+    :universe-factory-form (make-computed-universe :name "Default computed-class-test universe"))
+
+(def computed-universe separated-compute-as
+    :universe-factory-form (make-computed-universe :name "Separated computed-class-test universe"))
 
 ;;;;;;
 ;;; defclass tests
