@@ -66,7 +66,8 @@
 
 (def method shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names &rest args &key (initform nil initform-p) computed-in &allow-other-keys)
   ;; convert the initform into a compute-as* primitive form, assert and set computed-in properly
-  (when computed-in
+  (when (and computed-in
+             (not (eq computed-in t)))
     (assert (get computed-in 'computed-as-macro-p) ()
             "The specified :computed-in argument ~S is not a compute-as macro in any computed universe"
             computed-in)
