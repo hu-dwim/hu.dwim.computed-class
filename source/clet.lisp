@@ -15,7 +15,7 @@
                  (assert (symbolp name))
                  (let ((state-variable-name (symbolicate "%" name '#:-state))
                        (state-accessor-name (symbolicate name '#:-state)))
-                   (assert (compute-as-form-p definition) () "You must specify a compute-as form as definition for defcvar")
+                   (assert (compute-as-form? definition) () "You must specify a compute-as form as definition for defcvar")
                    `(progn
                      (,',definer-name ,state-variable-name
                          (let ((new-state ,(ensure-arguments-for-primitive-compute-as-form
@@ -47,12 +47,12 @@
      - NAME-state The place itself that holds the computed state, so you can 
        read or setf closed-over computed variables to new (compute-as ...) forms."
   (let ((state-variables (loop for (name definition) :in vars
-                               collect (if (compute-as-form-p definition)
+                               collect (if (compute-as-form? definition)
                                            (gensym (string name))
                                            nil)))
         (local-computed-state-value (gensym "COMPUTED-STATE-VALUE")))
     (setf vars (loop for (name definition) :in vars
-                     collect (list name (if (compute-as-form-p definition)
+                     collect (list name (if (compute-as-form? definition)
                                             (ensure-arguments-for-primitive-compute-as-form
                                              (primitive-compute-as-form-of definition env)
                                              :kind 'variable)

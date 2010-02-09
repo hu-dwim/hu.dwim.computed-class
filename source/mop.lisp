@@ -68,12 +68,12 @@
   ;; convert the initform into a compute-as* primitive form, assert and set computed-in properly
   (when (and computed-in
              (not (eq computed-in t)))
-    (assert (get computed-in 'computed-as-macro-p) ()
+    (assert (compute-as-macro-name? computed-in) ()
             "The specified :computed-in argument ~S is not a compute-as macro in any computed universe"
             computed-in)
     (setf computed-in (get computed-in 'primitive-compute-as-macro))
     (assert computed-in))
-  (let ((primitive-form (if (compute-as-form-p initform)
+  (let ((primitive-form (if (compute-as-form? initform)
                             (primitive-compute-as-form-of initform)
                             initform)))
     (when (and initform-p
@@ -103,7 +103,7 @@
 (def function needs-to-be-computed-direct-slot-p (slot-initargs)
   (let ((initform (getf slot-initargs :initform)))
     (or (getf slot-initargs :computed-in)
-        (compute-as-form-p initform))))
+        (compute-as-form? initform))))
 
 (def method direct-slot-definition-class ((class computed-class) &rest slot-initargs
                                          &key slot-value-function setf-slot-value-function &allow-other-keys)

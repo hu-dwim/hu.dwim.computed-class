@@ -291,28 +291,31 @@
                  (computed-state-p result))
         result))))
 
-(def function compute-as-form-p (form)
+(def function compute-as-form? (form)
   "To identify forms that create a computed state, IOW all kind of (compute-as ...) forms."
   (and (consp form)
        (symbolp (first form))
-       (get (first form) 'computed-as-macro-p)))
+       (compute-as-macro-name? (first form))))
 
-(def function primitive-compute-as-form-p (form)
+(def function compute-as-macro-name? (symbol)
+  (get symbol 'computed-as-macro? #f))
+
+(def function primitive-compute-as-form? (form)
   "To identify (compute-as* ...) forms, that are the primitive computed state factories of a computed universe."
-  (and (compute-as-form-p form)
+  (and (compute-as-form? form)
        (eq (first form) (get (first form) 'primitive-compute-as-macro))))
 
 (def function primitive-compute-as-form-of (input-form &optional env)
-  (if (primitive-compute-as-form-p input-form)
+  (if (primitive-compute-as-form? input-form)
       input-form
       (loop with form = input-form
             with expanded-p = #t
             while (progn
                     (multiple-value-setq (form expanded-p) (macroexpand-1 form env))
                     expanded-p)
-            do (when (primitive-compute-as-form-p form)
+            do (when (primitive-compute-as-form? form)
                  (return form))
-            finally (error "Form ~S can not be macroexpanded into a primitive-compute-as-form-p. This should not happen." input-form))))
+            finally (error "Form ~S can not be macroexpanded into a primitive-compute-as-form. This should not happen." input-form))))
 
 (def function ensure-arguments-for-primitive-compute-as-form (form &rest args)
   (let ((form-args (copy-list (second form))))
