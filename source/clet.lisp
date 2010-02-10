@@ -25,7 +25,8 @@
                                (if (boundp ',state-variable-name)
                                    (copy-place-independent-slots-of-computed-state new-state ,state-variable-name)
                                    new-state)
-                             (setf (cs-variable it) ',name)))
+                             (debug-only
+                               (setf (cs-place-descriptor it) ',name))))
                        ,@(when doc-p (list doc)))
                      (define-symbol-macro ,name (%computed-state-value ,state-variable-name))
                      (define-symbol-macro ,state-accessor-name (,state-accessor-name))
@@ -85,7 +86,8 @@
                                    `(,var (aprog1
                                               ,definition
                                             (assert (eq (cs-kind it) 'variable))
-                                            (setf (cs-variable it) ',name)))
+                                            (debug-only
+                                              (setf (cs-place-descriptor it) ',name))))
                                    (list name definition)))
             (declare (ignorable ,@(remove-if #'null state-variables)))
             ;; define reader and writer flet's named by the gensym-ed variables. they will handle the read/write of the states

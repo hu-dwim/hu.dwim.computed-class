@@ -32,7 +32,7 @@
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (cu-pulse (cs-universe computed-state)))
 
-;; TODO with minimal care this structure could shrink quite a bit in byte size
+;; TODO keep track of depends-on-me for debugging purposes, and also for forward pushing changes (which is not yet implemented)
 (def structure (computed-state (:conc-name cs-) (:print-object print-computed-state))
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
   (universe
@@ -47,17 +47,16 @@
   (depends-on
    nil
    :type list) ; of computed-state's
-  ;;(depending-on-me but only those that need to be notified) TODO: not yet implemented
-  #+debug(depending-on-me
-          ;; TODO keep a full list for debug purposes
-          nil
-          :type list) ; of computed-state's
   (compute-as
    nil
    :type (or null symbol function)) ; direct values have nil compute-as
-  #+debug(form
-          nil
-          :type (or atom list))
+  ;; these two are used for object slots
+  (object
+   nil
+   :type (or null computed-object))
+  (value
+   nil
+   :type t)
   (kind
    'standalone
    :type (member standalone object-slot variable))
@@ -65,20 +64,14 @@
    :on-demand
    ;; TODO: add :keep-up-to-date
    :type (member :always :on-demand))
-  ;; contains the name of the variable
-  (variable
+  #+debug
+  (place-descriptor ; contains the name of the computed variable, or the slot definition
    nil
-   :type symbol)
-  ;; these two are used for object slots
-  (object
+   :type (or null symbol computed-effective-slot-definition))
+  #+debug
+  (form
    nil
-   :type (or null computed-object))
-  (slot
-   nil
-   :type (or null computed-effective-slot-definition))
-  (value
-   nil
-   :type t))
+   :type (or atom list)))
 
 (def (function io) copy-place-independent-slots-of-computed-state (from into)
   "Copy the slots of FROM into INTO that are not dependent on the place this computed slot has been assigned to."
@@ -94,7 +87,6 @@
        computed-at-pulse
        validated-at-pulse
        depends-on
-       #+debug depending-on-me
        compute-as
        #+debug form
        value)
@@ -256,14 +248,20 @@
 
 (def function print-computed-state (computed-state stream)
   (declare (type computed-state computed-state))
-  (let* ((name (if (eq (cs-kind computed-state) 'object-slot)
-                   (awhen (cs-slot computed-state)
-                     (slot-definition-name it))
-                   (cs-variable computed-state))))
-    (when (eq (cs-kind computed-state) 'object-slot)
-      (format stream "~A / " (cs-object computed-state)))
-    (format stream "<#~A :pulse ~A :value ~A :kind ~A>"
-            name (cs-computed-at-pulse computed-state) (cs-value computed-state) (cs-kind computed-state))))
+  #*((:debug
+      (bind ((name (cs-place-descriptor computed-state)))
+        (typecase name
+          (computed-effective-slot-definition
+           (setf name (slot-definition-name name))))
+        (when (eq (cs-kind computed-state) 'object-slot)
+          (format stream "~A / " (cs-object computed-state)))
+        (format stream "<#~A :pulse ~A :value ~A :kind ~A>"
+                name (cs-computed-at-pulse computed-state) (cs-value computed-state) (cs-kind computed-state))))
+     (t
+      (when (eq (cs-kind computed-state) 'object-slot)
+        (format stream "~A / " (cs-object computed-state)))
+      (format stream "<#computed-state :pulse ~A :value ~A :kind ~A>"
+              (cs-computed-at-pulse computed-state) (cs-value computed-state) (cs-kind computed-state)))))
 
 ;;;;;;
 ;;; Helper methods

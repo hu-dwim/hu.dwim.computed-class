@@ -191,7 +191,8 @@
               (progn
                 (setf slot-value new-value)
                 (setf (cs-object ,new-value) ,object)
-                (setf (cs-slot ,new-value) ,slot)
+                (debug-only
+                  (setf (cs-place-descriptor ,new-value) ,slot))
                 (setf-standard-instance-access-form slot-value ,object ,slot)))
           (invalidate-computed-state slot-value)
           slot-value)
