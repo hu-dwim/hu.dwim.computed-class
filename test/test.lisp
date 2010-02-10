@@ -112,8 +112,10 @@
 (def test valid ()
   (let ((object (make-instance 'computed-test)))
     (is (computed-slot-valid-p object 'slot-a))
-    (setf (slot-a-of object) 1)
+    ;; need to setf a computed-state first
+    (setf (slot-a-of object) (compute-as 1))
     (is (not (computed-slot-valid-p object 'slot-a)))
+    ;; no need to wrap it anymore, it's already a computed state
     (setf (slot-a-of object) 1)
     (is (computed-slot-valid-p object 'slot-a))
     (invalidate-computed-slot object 'slot-a)
@@ -160,7 +162,7 @@
                                   :slot-a (compute-as (+ (slot-a-of object-1) (slot-b-of object-1)))
                                   :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (signals unbound-slot (slot-a-of object-1))
-    (setf (slot-a-of object-1) 0)
+    (setf (slot-a-of object-1) (compute-as 0))
     (is (= 0 (slot-a-of object-1)))
     (is (= 2 (slot-b-of object-2)))
     (setf (slot-a-of object-1) 2)
