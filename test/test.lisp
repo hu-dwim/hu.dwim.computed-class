@@ -9,11 +9,11 @@
 (def suite* (test :in root-suite))
 
 ;; the two ways to define a computed-universe are equivalent
-(def computed-universe compute-as
-    :universe-factory-form (make-computed-universe :name "Default computed-class-test universe"))
+(def computed-universe test-universe
+    :computed-state-factory-name compute-as)
 
-(define-computed-universe separated-compute-as
-    :universe-factory-form (make-computed-universe :name "Separated computed-class-test universe"))
+(define-computed-universe separate-universe
+    :computed-state-factory-name separated-compute-as)
 
 ;;;;;;
 ;;; defclass tests
@@ -31,7 +31,7 @@
            (defclass computed-3 ()
              ((a)
               #+sbcl(b :computed-in nil)
-              (c :computed-in compute-as))
+              (c :computed-in test-universe))
              (:metaclass computed-class))))
       (declare (type standard-class class))
       (flet ((computed-slot-p (slot-name)
@@ -49,7 +49,7 @@
     (let ((class
            (defclass computed-5 ()
              ((a)
-              (c :computed-in compute-as))
+              (c :computed-in test-universe))
              (:metaclass computed-class*))))
       (flet ((computed-slot-p (slot-name)
                (typep (find-slot class slot-name) 'computed-effective-slot-definition)))
@@ -103,11 +103,11 @@
   ((slot-a
     :accessor slot-a-of
     :initarg :slot-a
-    :computed-in compute-as)
+    :computed-in test-universe)
    (slot-b
     :accessor slot-b-of
     :initarg :slot-b
-    :computed-in compute-as))
+    :computed-in test-universe))
   (:metaclass computed-class*))
 
 (def test valid ()
@@ -182,8 +182,8 @@
     (slot-a-of object)
     (slot-b-of object))
   (defclass sbcl-class-cache-computed-test ()
-    ((slot-a :accessor slot-a-of :initarg :slot-a :computed-in compute-as)
-     (slot-b :accessor slot-b-of :initarg :slot-b :computed-in compute-as))
+    ((slot-a :accessor slot-a-of :initarg :slot-a :computed-in test-universe)
+     (slot-b :accessor slot-b-of :initarg :slot-b :computed-in test-universe))
     (:metaclass computed-class*))
   (let ((object (make-instance 'sbcl-class-cache-computed-test
                                :slot-a (compute-as 1)
@@ -445,7 +445,7 @@ dragons be here :)
         (second (multiple-value-list
                     ;; define a function that is using the computed lexical bindings that we will be
                     ;; modifying in various ways in the test run and check the function's behaviour
-                    (defcfun (format* :computed-in compute-as) (datum &rest args)
+                    (defcfun (format* :computed-in test-universe) (datum &rest args)
                       (incf run-counter)
                       irrelevant-variable ; read a computed-state that is in another universe: should have no effect at all.
                       (labels ((factorial (n)
@@ -512,7 +512,7 @@ dragons be here :)
         ;;(break "The memoized-table is ~A" memoize-table)
         (is (= (hash-table-count memoize-table) 100))))))
 
-(defcfun (fun-with-multiple-values :computed-in compute-as) (some arg &key key)
+(defcfun (fun-with-multiple-values :computed-in test-universe) (some arg &key key)
   (values key arg some))
 
 (def test defcfun2 ()
