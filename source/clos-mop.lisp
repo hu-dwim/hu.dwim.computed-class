@@ -9,14 +9,6 @@
 ;;;;;;
 ;;; CLOS MOP related
 
-(def (class e) computed-class (standard-class)
-  ()
-  (:documentation "A computed class might have slots which are computed based on other computed slots in other computed class instances. A slot of a computed class is either a standard slot or a computed slot and only class redefinition may change this. Slots which are computed will be tracked, invalidated and/or recomputed whenever a computed slot value changes which were used last time when the slot was computed. The used computed slots are collected runtime and per instance. Moreover different instances might compute the same slots in different ways."))
-
-(def (class e) computed-class* (computed-class)
-  ()
-  (:documentation "Just like computed-class but the classes having this metaclass will have custom accessors. This slows down loading but speeds up the accessors quite a bit."))
-
 (def method validate-superclass ((subclass computed-class) (superclass standard-class))
   (subtypep (class-of subclass) (class-of superclass)))
 
@@ -64,24 +56,26 @@
 (def class functional-effective-slot-definition (functional-slot-definition standard-effective-slot-definition)
   ())
 
-(def method shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names &rest args &key (initform nil initform-p) computed-in &allow-other-keys)
+(def method shared-initialize :around ((computed-slot-definition computed-direct-slot-definition) slot-names &rest args &key
+                                       (initform nil initform-p) computed-in
+                                       &allow-other-keys)
   ;; convert the initform into a compute-as* primitive form, assert and set computed-in properly
   (when (and computed-in
              (not (eq computed-in t)))
-    (assert (compute-as-macro-name? computed-in) ()
-            "The specified :computed-in argument ~S is not a compute-as macro in any computed universe"
-            computed-in)
-    (setf computed-in (get computed-in 'primitive-compute-as-macro))
-    (assert computed-in))
-  (let ((primitive-form (if (compute-as-form? initform)
-                            (primitive-compute-as-form-of initform)
-                            initform)))
+    (bind (((:values compute-as-macro-name? compute-as-macro-name/primitive) (compute-as-macro-name? computed-in)))
+      (unless compute-as-macro-name?
+        (error "The specified :computed-in argument ~S is not a compute-as macro in any computed universe" computed-in))
+      (setf computed-in compute-as-macro-name/primitive)
+      (assert computed-in)))
+  (bind ((primitive-form (if (compute-as-form? initform)
+                             (expand-to-primitive-compute-as-form initform)
+                             initform)))
     (when (and initform-p
                primitive-form)
       (if computed-in
-          (assert (or (atom primitive-form) (eq (first primitive-form) computed-in)) ()
-                  ":computed-in and the :initform parameters are not consistent. ~S is not computed in ~S"
-                  initform computed-in)
+          (assert (or (atom primitive-form)
+                      (eq (first primitive-form) computed-in)) ()
+                      ":computed-in and the :initform parameters are not consistent: ~S is not computed in ~S" initform computed-in)
           (setf computed-in (first primitive-form)))
       ;; to enforce :kind 'object-slot. should it be an assert instead?
       ;;(setf primitive-form (ensure-arguments-for-primitive-compute-as-form primitive-form :kind 'object-slot))
@@ -144,8 +138,9 @@
       ;; We collect and copy the readers and writers to the effective-slot, so we can access it
       ;; later when generating custom accessors.
       (cond ((typep it 'computed-effective-slot-definition)
-             (setf (computed-in-of it) (some (lambda (slot) (when (typep slot 'computed-direct-slot-definition)
-                                                              (computed-in-of slot)))
+             (setf (computed-in-of it) (some (lambda (slot)
+                                               (when (typep slot 'computed-direct-slot-definition)
+                                                 (computed-in-of slot)))
                                              direct-slot-definitions))
              (assert (computed-in-of it) nil "Computed effective slots must be assigned to a computed universe")
              (setf (computed-readers-of it)
@@ -206,22 +201,9 @@
             ;; TODO: this will neither clear nor set the cs-compute-as to a constantly lambda, which is probably a bad thing.
             ;; TODO: e.g. currently :always computed-state's silently ignore setf-ing a constant in them.
             (setf (%computed-state-value slot-value) ,new-value)
-            ;; by default unbound computed slots are initialized to be a computed slot, even when setting a constant in them.
-            (if (eq slot-value (load-time-value +unbound-slot-value+))
-                (setf-standard-instance-access-form (make-computed-state :universe
-                                                                         ,(if (symbolp slot)
-                                                                              `(get (computed-in-of ,slot) 'computed-universe)
-                                                                              `(get ',(computed-in-of slot) 'computed-universe))
-                                                                         #+debug :form #+debug ,new-value
-                                                                         :compute-as (constantly ,new-value)
-                                                                         :kind 'object-slot
-                                                                         :object ,object
-                                                                         :slot ,slot)
-                                                    ,object
-                                                    ,slot)
-                ;; there was a non-computed-state in the slot and we are setting a non-computed-state
-                ;; new-value: keep the slot uncomputed.
-                (setf-standard-instance-access-form ,new-value ,object ,slot))))))
+            ;; we just write the non computed-state new value in the slot that currently holds a non computed-state value or is unbound
+            ;; TODO we could automatically wrap the value in a computed state but it's not trivial and we don't need it right now
+            (setf-standard-instance-access-form ,new-value ,object ,slot)))))
 
 (def method slot-value-using-class ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))

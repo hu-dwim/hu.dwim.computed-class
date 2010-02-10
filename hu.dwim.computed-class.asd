@@ -16,11 +16,13 @@
                :hu.dwim.syntax-sugar
                :hu.dwim.util.mop)
   :components ((:module "source"
-                :components ((:file "api" :depends-on ("engine" "mop"))
+                :components ((:file "api" :depends-on ("package"))
                              (:file "clet" :depends-on ("engine"))
-                             (:file "util" :depends-on ("logger"))
+                             (:file "clos" :depends-on ("clos-mop" "engine"))
+                             (:file "clos-mop" :depends-on ("engine"))
                              (:file "defcfun" :depends-on ("engine"))
-                             (:file "engine" :depends-on ("util"))
+                             (:file "engine" :depends-on ("api" "universe" "util"))
+                             (:file "universe" :depends-on ("api"))
                              (:file "logger" :depends-on ("package"))
-                             (:file "mop" :depends-on ("engine"))
-                             (:file "package")))))
+                             (:file "package")
+                             (:file "util" :depends-on ("logger"))))))

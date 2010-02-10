@@ -19,7 +19,7 @@
                    `(progn
                      (,',definer-name ,state-variable-name
                          (let ((new-state ,(ensure-arguments-for-primitive-compute-as-form
-                                            (primitive-compute-as-form-of definition env)
+                                            (expand-to-primitive-compute-as-form definition env)
                                             :kind 'variable)))
                            (aprog1
                                (if (boundp ',state-variable-name)
@@ -54,7 +54,7 @@
     (setf vars (loop for (name definition) :in vars
                      collect (list name (if (compute-as-form? definition)
                                             (ensure-arguments-for-primitive-compute-as-form
-                                             (primitive-compute-as-form-of definition env)
+                                             (expand-to-primitive-compute-as-form definition env)
                                              :kind 'variable)
                                             definition))))
     ;; wrap the global computed-state-value accessors and do some extra work specific to handling variables

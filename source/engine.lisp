@@ -13,21 +13,13 @@
   "The invalid pulse will be set in the computed-state whenever it has to be recomputed on the next read operation.")
 
 ;;;;;;
-;;; Computed object
-
-(def (class e) computed-object ()
-  ()
-  (:documentation "This is the base class for all computed classes. The class need not be listed in the direct supers when defining a computed class because the metaclass makes sure it's among them."))
-
-;;;;;;
 ;;; Computed state
 
 (def structure (computed-universe (:conc-name cu-))
   "This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor. On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original slot was last computed then this counter will not change. The first valid pulse value is 0."
+  (description nil)
   (pulse 0 :type integer)
   (name nil :type (or null string)))
-
-(def special-variable *default-universe* (make-computed-universe :name "Default computed universe"))
 
 (def (function io) incf-pulse (computed-state)
   (declare (type computed-state computed-state)
@@ -40,6 +32,7 @@
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (cu-pulse (cs-universe computed-state)))
 
+;; TODO with minimal care this structure could shrink quite a bit in byte size
 (def structure (computed-state (:conc-name cs-) (:print-object print-computed-state))
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
   (universe
@@ -193,7 +186,7 @@
              (store-new-value-p (if (and (primitive-p old-value)
                                          (primitive-p new-value))
                                     (not (equal old-value new-value))
-                                    (not (computed-value-equal-p old-value new-value)))))
+                                    (not (computed-value-equal? old-value new-value)))))
         (setf (cs-depends-on computed-state) (rsc-used-computed-states context))
         (when (or store-new-value-p
                   (= (cs-computed-at-pulse computed-state) #.+invalid-pulse+))
@@ -291,21 +284,7 @@
                  (computed-state-p result))
         result))))
 
-(def function compute-as-form? (form)
-  "To identify forms that create a computed state, IOW all kind of (compute-as ...) forms."
-  (and (consp form)
-       (symbolp (first form))
-       (compute-as-macro-name? (first form))))
-
-(def function compute-as-macro-name? (symbol)
-  (get symbol 'computed-as-macro? #f))
-
-(def function primitive-compute-as-form? (form)
-  "To identify (compute-as* ...) forms, that are the primitive computed state factories of a computed universe."
-  (and (compute-as-form? form)
-       (eq (first form) (get (first form) 'primitive-compute-as-macro))))
-
-(def function primitive-compute-as-form-of (input-form &optional env)
+(def function expand-to-primitive-compute-as-form (input-form &optional env)
   (if (primitive-compute-as-form? input-form)
       input-form
       (loop with form = input-form

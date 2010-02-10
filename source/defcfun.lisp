@@ -8,14 +8,14 @@
 
 (def (macro e) defcfun (name args &body body)
   "Just like a defun, but assumes that the code executed in its body does not have any sideeffects and based on this assumption memoizes the computed return values. The memoized entries are dropped if any computed-state is invalidated that was read while calculating the memoize entry in question."
-  (destructuring-bind (name &key (memoize-test-fn 'equal) computed-in maximum-cache-entries
-                            (hash-table-factory 'make-hash-table))
-      (ensure-list name)
-    (assert computed-in (computed-in) "You need to specify with :computed-in which computed universe defcfun's are computed in.")
+  (bind (((name &key (memoize-test-fn 'equal) computed-in maximum-cache-entries (hash-table-factory 'make-hash-table))
+          (ensure-list name)))
     (multiple-value-bind (body declarations documentation) (parse-body body :documentation t)
       (with-unique-names (memoize-table memoize-key state)
-        (let* ((&rest-name nil)
-               (primitive-compute-as-macro-name (get computed-in 'primitive-compute-as-macro)))
+        (bind (((:values compute-as-macro-name? compute-as-macro-name/primitive) (compute-as-macro-name? computed-in))
+               (&rest-name nil))
+          (unless compute-as-macro-name?
+            (error "The specified :computed-in argument ~S is not a compute-as macro in any computed universe" computed-in))
           (multiple-value-setq (args &rest-name) (ensure-&rest-in-lambda-list args))
           `(progn
             (awhen (get ',name 'memoize-table)
@@ -31,7 +31,7 @@
                                                     ,&rest-name))
                                (,state (gethash ,memoize-key ,memoize-table)))
                           (unless ,state
-                            (setf ,state (,primitive-compute-as-macro-name (:kind standalone)
+                            (setf ,state (,compute-as-macro-name/primitive (:kind standalone)
                                                                            (multiple-value-list (progn ,@body))))
                             ,(when maximum-cache-entries
                                    `(when (> (hash-table-count ,memoize-table) ,maximum-cache-entries)
