@@ -15,22 +15,16 @@
 ;;;;;;
 ;;; Computed state
 
-(def structure (computed-universe (:conc-name cu-))
-  "This counter will be incremented each time a computed slot is set either by calling slot-value or by the accessor. On the other hand when a computed slot is recomputed due to changes in the computed slots used when the original slot was last computed then this counter will not change. The first valid pulse value is 0."
-  (description nil)
-  (pulse 0 :type integer)
-  (name nil :type (or null string)))
-
 (def (function io) incf-pulse (computed-state)
   (declare (type computed-state computed-state)
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
-  ;; TODO think about fixnum overflow...
-  (incf (cu-pulse (cs-universe computed-state))))
+  ;; TODO think about fixnum overflow: keeping pulse at fixnum range is good for performance
+  (incf (pulse-of (cs-universe computed-state))))
 
 (def (function io) current-pulse (computed-state)
   (declare (type computed-state computed-state)
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
-  (cu-pulse (cs-universe computed-state)))
+  (pulse-of (cs-universe computed-state)))
 
 ;; TODO keep track of depends-on-me for debugging purposes, and also for forward pushing changes (which is not yet implemented)
 (def structure (computed-state (:conc-name cs-) (:print-object print-computed-state))

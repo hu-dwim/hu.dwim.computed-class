@@ -12,10 +12,8 @@
           (ensure-list name)))
     (multiple-value-bind (body declarations documentation) (parse-body body :documentation t)
       (with-unique-names (memoize-table memoize-key state)
-        (bind (((:values compute-as-macro-name? compute-as-macro-name/primitive) (compute-as-macro-name? computed-in))
+        (bind ((universe (find-computed-universe computed-in :otherwise `(:error "The specified :computed-in argument ~S is not a compute-as macro in any computed universe" ,computed-in)))
                (&rest-name nil))
-          (unless compute-as-macro-name?
-            (error "The specified :computed-in argument ~S is not a compute-as macro in any computed universe" computed-in))
           (multiple-value-setq (args &rest-name) (ensure-&rest-in-lambda-list args))
           `(progn
             (awhen (get ',name 'memoize-table)
@@ -31,8 +29,8 @@
                                                     ,&rest-name))
                                (,state (gethash ,memoize-key ,memoize-table)))
                           (unless ,state
-                            (setf ,state (,compute-as-macro-name/primitive (:kind standalone)
-                                                                           (multiple-value-list (progn ,@body))))
+                            (setf ,state (,(computed-state-factory-name/primitive-of universe) (:kind standalone)
+                                           (multiple-value-list (progn ,@body))))
                             ,(when maximum-cache-entries
                                    `(when (> (hash-table-count ,memoize-table) ,maximum-cache-entries)
                                      ;; PUNT: simply drop the entire cache when we go over the

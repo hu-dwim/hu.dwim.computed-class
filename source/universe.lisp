@@ -6,85 +6,119 @@
 
 (in-package :hu.dwim.computed-class)
 
-(def class computed-universe-description ()
-  ((compute-as-macro-name
+(def class computed-universe-class (standard-class)
+  ((computed-state-factory-name
     :type symbol
-    :initarg :compute-as-macro-name
-    :accessor compute-as-macro-name-of)
-   (compute-as-macro-name/primitive
+    :initarg :computed-state-factory-name
+    :reader computed-state-factory-name-of)
+   (computed-state-factory-name/primitive
     :type symbol
-    :initarg :compute-as-macro-name/primitive
-    :accessor compute-as-macro-name/primitive-of)
+    :initarg :computed-state-factory-name/primitive
+    :reader computed-state-factory-name/primitive-of)
    (default-recomputation-mode
     :initarg :default-recomputation-mode
-    :accessor default-recomputation-mode-of)
+    :reader default-recomputation-mode-of)
    (universe-accessor-form
     :initarg :universe-accessor-form
-    :accessor universe-accessor-form-of)
+    :reader universe-accessor-form-of)
    (universe-factory-form
     :initarg :universe-factory-form
-    :accessor universe-factory-form-of)))
+    :reader universe-factory-form-of)))
 
-(def (namespace e) computed-universe (compute-as-macro-name &rest args &key
-                                                            default-recomputation-mode
-                                                            compute-as-macro-name/primitive
-                                                            universe-accessor-form
-                                                            universe-factory-form
-                                                            self-variable-name
-                                                            current-value-variable-name)
-  (declare (ignore default-recomputation-mode compute-as-macro-name/primitive universe-accessor-form
+(def method validate-superclass ((subclass computed-universe-class) (superclass standard-class))
+  (subtypep (class-of subclass) (class-of superclass)))
+
+(def class computed-universe ()
+  ((pulse
+    :initform 0
+    :type integer
+    :initarg :pulse
+    :accessor pulse-of
+    :documentation "This counter will be incremented each time a computed-state is set externally. So, when a computed-state is recomputed (e.g. due to changes in the computed-states that were read while computing the previous value), then this counter will not change. The first valid pulse value is 0."))
+  (:metaclass computed-universe-class))
+
+(def (definer e) computed-universe (name &rest args &key
+                                         computed-state-factory-name
+                                         default-recomputation-mode
+                                         computed-state-factory-name/primitive
+                                         universe-accessor-form
+                                         universe-factory-form
+                                         self-variable-name
+                                         current-value-variable-name)
+  (declare (ignore computed-state-factory-name default-recomputation-mode computed-state-factory-name/primitive universe-accessor-form
                    universe-factory-form self-variable-name current-value-variable-name))
-  (apply #'%expand-computed-universe-definition compute-as-macro-name args))
+  (apply #'%expand-computed-universe-definition name args))
 
-(def (macro e) define-computed-universe (compute-as-macro-name &rest args &key
-                                                               default-recomputation-mode
-                                                               compute-as-macro-name/primitive
-                                                               universe-accessor-form
-                                                               universe-factory-form
-                                                               self-variable-name
-                                                               current-value-variable-name)
-  (declare (ignore default-recomputation-mode compute-as-macro-name/primitive universe-accessor-form
+(def (macro e) define-computed-universe (name &rest args &key
+                                              computed-state-factory-name
+                                              default-recomputation-mode
+                                              computed-state-factory-name/primitive
+                                              universe-accessor-form
+                                              universe-factory-form
+                                              self-variable-name
+                                              current-value-variable-name)
+  (declare (ignore computed-state-factory-name default-recomputation-mode computed-state-factory-name/primitive universe-accessor-form
                    universe-factory-form self-variable-name current-value-variable-name))
-  (apply #'%expand-computed-universe-definition compute-as-macro-name args))
+  (apply #'%expand-computed-universe-definition name args))
 
-(def function compute-as-macro-name? (symbol)
-  (do-computed-universe-namespace (name description (values #f nil))
-    (when (or (eq symbol (compute-as-macro-name-of description))
-              (eq symbol (compute-as-macro-name/primitive-of description)))
-      (return (values #t (compute-as-macro-name/primitive-of description))))))
+(def function computed-state-factory-name? (symbol)
+  (block nil
+    (bind ((universe-name (get symbol 'computed-state-factory-of)))
+      (unless universe-name
+        (return #f))
+      (bind ((universe (find-computed-universe universe-name :otherwise nil)))
+        (unless universe
+          (return #f))
+        (values #t (computed-state-factory-name/primitive-of universe) universe)))))
+
+(def function find-computed-universe (name &key (otherwise :error))
+  (check-type name symbol)
+  (bind ((universe (find-class name nil)))
+    (if (and universe
+             (typep universe 'computed-universe-class))
+        universe
+        (handle-otherwise otherwise))))
 
 (def function compute-as-form? (form)
   "To identify forms that create a computed state, IOW the (compute-as ...) forms of computed universes."
   (and (consp form)
        (symbolp (first form))
-       (compute-as-macro-name? (first form))))
+       (computed-state-factory-name? (first form))))
 
 (def function primitive-compute-as-form? (form)
   "To identify (compute-as* ...) forms, which are the primitive computed state factories of computed universes."
-  (bind (((:values compute-as-form? compute-as-macro-name/primitive) (compute-as-form? form)))
+  (bind (((:values compute-as-form? computed-state-factory-name/primitive) (compute-as-form? form)))
     (and compute-as-form?
-         (eq (first form) compute-as-macro-name/primitive))))
+         (eq (first form) computed-state-factory-name/primitive))))
 
-(def function %expand-computed-universe-definition (compute-as-macro-name &key
-                                                                          (default-recomputation-mode :on-demand)
-                                                                          (compute-as-macro-name/primitive (symbolicate compute-as-macro-name "*"))
-                                                                          (universe-accessor-form `(get ',compute-as-macro-name/primitive 'computed-universe))
-                                                                          (universe-factory-form `(make-computed-universe :name ,(fully-qualified-symbol-name compute-as-macro-name)))
-                                                                          (self-variable-name '-self-)
-                                                                          (current-value-variable-name '-current-value-))
+(def function %expand-computed-universe-definition (name &key
+                                                         (computed-state-factory-name (symbolicate name '#:/compute-as))
+                                                         (computed-state-factory-name/primitive (symbolicate computed-state-factory-name "*"))
+                                                         (default-recomputation-mode :on-demand)
+                                                         (universe-accessor-form `(get ',name 'computed-universe-instance))
+                                                         (universe-factory-form `(make-instance ',name))
+                                                         (self-variable-name '-self-)
+                                                         (current-value-variable-name '-current-value-))
   ;; multiple evaluation of DEFAULT-RECOMPUTATION-MODE, avoiding would break toplevelness
-  (check-type compute-as-macro-name symbol)
-  (bind ((docstring "Generated by a computed universe. It's a macro to instantiate computations that can be stored in computed places, e.g. in a computed slot."))
+  (check-type computed-state-factory-name symbol)
+  (bind ((docstring "Generated by a computed universe. It's a macro to instantiate computations that can be stored in computed places, e.g. in a computed slot.")
+         (metaclass-name (symbolicate name '#:/metaclass)))
     `(progn
        (eval-always
-         (setf (find-computed-universe ',compute-as-macro-name) (make-instance 'computed-universe-description
-                                                                               :compute-as-macro-name ',compute-as-macro-name
-                                                                               :compute-as-macro-name/primitive ',compute-as-macro-name/primitive
-                                                                               :default-recomputation-mode ,default-recomputation-mode
-                                                                               :universe-accessor-form ',universe-accessor-form
-                                                                               :universe-factory-form ',universe-factory-form)))
-
-       (defmacro ,compute-as-macro-name/primitive ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode)) &body form)
+         (setf (get ',computed-state-factory-name           'computed-state-factory-of) ',name)
+         (setf (get ',computed-state-factory-name/primitive 'computed-state-factory-of) ',name)
+         (def class ,metaclass-name (computed-universe-class)
+           ()
+           (:default-initargs
+               :computed-state-factory-name ',computed-state-factory-name
+             :computed-state-factory-name/primitive ',computed-state-factory-name/primitive
+             :default-recomputation-mode ,default-recomputation-mode
+             :universe-accessor-form ',universe-accessor-form
+             :universe-factory-form ',universe-factory-form))
+         (defclass ,name (computed-universe)
+           ()
+           (:metaclass ,metaclass-name)))
+       (defmacro ,computed-state-factory-name/primitive ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode)) &body form)
          ,docstring
          (bind ((self-variable-name ',self-variable-name))
            (unless (eq kind 'object-slot)
@@ -94,20 +128,17 @@
                 (unless ,universe
                   ;; this is not thread-safe here, it's the user's responsibility to make sure of proper thread exclusion
                   (setf ,universe ,',universe-factory-form)
-                  (setf (cu-description ,universe) (find-computed-universe ',',compute-as-macro-name :otherwise :error))
                   (setf ,',universe-accessor-form ,universe))
                 (check-type ,universe computed-universe)
-                (assert (cu-description ,universe))
                 (make-computed-state :universe ,universe
                                      :recomputation-mode ',recomputation-mode
                                      #+debug :form #+debug ',form
-                                     :compute-as (named-lambda ,',(symbolicate compute-as-macro-name/primitive '#:/a-computation-body)
+                                     :compute-as (named-lambda ,',(symbolicate computed-state-factory-name/primitive '#:/a-computation-body)
                                                      (,self-variable-name ,',current-value-variable-name)
                                                    (declare (ignorable ,self-variable-name
                                                                        ,',current-value-variable-name))
                                                    ,@form)
                                      :kind ',kind)))))
-
-       (defmacro ,compute-as-macro-name (&body body)
+       (defmacro ,computed-state-factory-name (&body body)
          ,docstring
-         `(,',compute-as-macro-name/primitive () ,@body)))))
+         `(,',computed-state-factory-name/primitive () ,@body)))))

@@ -15,7 +15,7 @@
 (def class computed-slot-definition (standard-slot-definition)
   ((computed-in
     :initform nil
-    :type symbol
+    :type (or (member t) computed-universe)
     :accessor computed-in-of
     :initarg :computed-in)
    (computed-readers
@@ -60,33 +60,28 @@
                                        (initform nil initform-p) computed-in
                                        &allow-other-keys)
   ;; convert the initform into a compute-as* primitive form, assert and set computed-in properly
-  (when (and computed-in
-             (not (eq computed-in t)))
-    (bind (((:values compute-as-macro-name? compute-as-macro-name/primitive) (compute-as-macro-name? computed-in)))
-      (unless compute-as-macro-name?
-        (error "The specified :computed-in argument ~S is not a compute-as macro in any computed universe" computed-in))
-      (setf computed-in compute-as-macro-name/primitive)
-      (assert computed-in)))
-  (bind ((primitive-form (if (compute-as-form? initform)
-                             (expand-to-primitive-compute-as-form initform)
-                             initform)))
+  (bind ((universe (when (and computed-in
+                              (not (eq computed-in t)))
+                     (find-computed-universe computed-in :otherwise `(:error "The specified :computed-in argument ~S is not a compute-as macro in any computed universe" ,computed-in))))
+         ((:values compute-as-form? nil initform-universe) (compute-as-form? initform))
+         (primitive-compute-as-form (if compute-as-form?
+                                        (expand-to-primitive-compute-as-form initform)
+                                        initform)))
     (when (and initform-p
-               primitive-form)
-      (if computed-in
-          (assert (or (atom primitive-form)
-                      (eq (first primitive-form) computed-in)) ()
-                      ":computed-in and the :initform parameters are not consistent: ~S is not computed in ~S" initform computed-in)
-          (setf computed-in (first primitive-form)))
-      ;; to enforce :kind 'object-slot. should it be an assert instead?
-      ;;(setf primitive-form (ensure-arguments-for-primitive-compute-as-form primitive-form :kind 'object-slot))
-      )
+               primitive-compute-as-form)
+      (if universe
+          (assert (or (atom primitive-compute-as-form)
+                      (eq universe initform-universe)) ()
+                      ":computed-in and the :initform parameters are not consistent: ~S is not computed in ~S" initform universe)
+          (setf universe initform-universe)))
     (apply #'call-next-method computed-slot-definition slot-names
            (append
-            (list :computed-in computed-in)
+            (list :computed-in (or universe
+                                   computed-in))
             (when initform-p
-              (list :initform primitive-form
-                    :initfunction (if primitive-form
-                                      (compile nil `(lambda () ,primitive-form))
+              (list :initform primitive-compute-as-form
+                    :initfunction (if primitive-compute-as-form
+                                      (compile nil `(lambda () ,primitive-compute-as-form))
                                       (constantly nil))))
             args))))
 

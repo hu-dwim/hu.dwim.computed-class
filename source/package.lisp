@@ -13,6 +13,5 @@
         :hu.dwim.util
         :hu.dwim.logger
         :hu.dwim.syntax-sugar)
-  (:export #:make-computed-universe
-           #:-current-value-)
+  (:export #:-current-value-)
   (:readtable-setup (enable-standard-hu.dwim-syntaxes)))
