@@ -7,7 +7,8 @@
 (in-package :hu.dwim.util)
 
 (def package :hu.dwim.computed-class.test
-  (:use :hu.dwim.common
+  (:use :hu.dwim.asdf
+        :hu.dwim.common
         :hu.dwim.computed-class
         :hu.dwim.def
         :hu.dwim.stefil
@@ -21,5 +22,5 @@
             slot-value-using-class-body setf-slot-value-using-class-body
             standard-instance-access-form computed-state-p
             computed-class.dribble computed-class.debug computed-class.info computed-class.warn computed-class.error
-            cs-kind cs-variable cs-depends-on)
+            cs-kind cs-place-descriptor cs-depends-on)
           (find-package :hu.dwim.computed-class.test)))

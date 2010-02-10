@@ -8,10 +8,11 @@
 
 (def suite* (test :in root-suite))
 
+;; the two ways to define a computed-universe are equivalent
 (def computed-universe compute-as
     :universe-factory-form (make-computed-universe :name "Default computed-class-test universe"))
 
-(def computed-universe separated-compute-as
+(define-computed-universe separated-compute-as
     :universe-factory-form (make-computed-universe :name "Separated computed-class-test universe"))
 
 ;;;;;;
@@ -98,7 +99,7 @@
 ;;;;;;
 ;;; Instance tests
 
-(def class computed-test ()
+(def class computed-test-class ()
   ((slot-a
     :accessor slot-a-of
     :initarg :slot-a
@@ -110,7 +111,7 @@
   (:metaclass computed-class*))
 
 (def test valid ()
-  (let ((object (make-instance 'computed-test)))
+  (let ((object (make-instance 'computed-test-class)))
     (is (computed-slot-valid-p object 'slot-a))
     ;; need to setf a computed-state first
     (setf (slot-a-of object) (compute-as 1))
@@ -122,7 +123,7 @@
     (is (not (computed-slot-valid-p object 'slot-a)))))
 
 (def test boundp1 ()
-  (let ((object (make-instance 'computed-test)))
+  (let ((object (make-instance 'computed-test-class)))
     (signals unbound-slot (slot-a-of object))
     (setf (slot-a-of object) (compute-as 1))
     (setf (slot-b-of object) (compute-as (1+ (slot-a-of -self-))))
@@ -135,7 +136,7 @@
     (signals unbound-slot (slot-a-of object))))
 
 (def test compute1 ()
-  (let ((object (make-instance 'computed-test
+  (let ((object (make-instance 'computed-test-class
                                :slot-a (compute-as 1)
                                :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= 1 (slot-a-of object)))
@@ -145,10 +146,10 @@
     (is (= 3 (slot-b-of object)))))
 
 (def test compute2 ()
-  (let* ((object-1 (make-instance 'computed-test
+  (let* ((object-1 (make-instance 'computed-test-class
                                   :slot-a (compute-as 1)
                                   :slot-b (compute-as (1+ (slot-a-of -self-)))))
-         (object-2 (make-instance 'computed-test
+         (object-2 (make-instance 'computed-test-class
                                   :slot-a (compute-as (+ (slot-a-of object-1) (slot-b-of object-1)))
                                   :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= 4 (slot-b-of object-2)))
@@ -156,9 +157,9 @@
     (is (= 6 (slot-b-of object-2)))))
 
 (def test compute3 ()
-  (let* ((object-1 (make-instance 'computed-test
+  (let* ((object-1 (make-instance 'computed-test-class
                                   :slot-b (compute-as (1+ (slot-a-of -self-)))))
-         (object-2 (make-instance 'computed-test
+         (object-2 (make-instance 'computed-test-class
                                   :slot-a (compute-as (+ (slot-a-of object-1) (slot-b-of object-1)))
                                   :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (signals unbound-slot (slot-a-of object-1))
@@ -199,12 +200,12 @@
 
 (def test always-compute-with-object ()
   (setf *always-compute-global-counter* 0)
-  (let* ((object (make-instance 'computed-test
+  (let* ((object (make-instance 'computed-test-class
                                :slot-a (compute-as* (:recomputation-mode :always)
                                          (slot-b-of -self-) ; read a slot to check later that we don't depend on it
                                          (incf *always-compute-global-counter*))
                                :slot-b (compute-as 42)))
-         (slot-a-state (computed-state-or-nil object (find-slot (find-class 'computed-test) 'slot-a))))
+         (slot-a-state (computed-state-or-nil object (find-slot 'computed-test-class 'slot-a))))
     (is (not (null slot-a-state)))
     (is (= (slot-a-of object) 1))
     (is (= *always-compute-global-counter* 1))
@@ -234,7 +235,7 @@
 ;;; Reconfiguration tests
 
 (def test reconfigure1 ()
-  (let* ((object (make-instance 'computed-test)))
+  (let* ((object (make-instance 'computed-test-class)))
     (setf (slot-a-of object) nil)
     (setf (slot-b-of object) nil)
     (setf (slot-a-of object) (compute-as 1))
@@ -248,7 +249,7 @@
     (is (not (null (slot-b-of object))))))
 
 (def test reconfigure2 ()
-  (let ((object (make-instance 'computed-test)))
+  (let ((object (make-instance 'computed-test-class)))
     (flet ((current-pulse ()
              (awhen (computed-state-or-nil object (find-slot (class-of object) 'slot-b))
                (current-pulse it))))
@@ -336,13 +337,13 @@
 
 (def test clet4 ()
   (clet ((a (compute-as 2))
-         (object (make-instance 'computed-test
+         (object (make-instance 'computed-test-class
                                 :slot-a (compute-as (1+ a))
                                 :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (is (= a 2))
     (clet ((b (compute-as (+ a (slot-b-of object)))))
       (is (= b 6))
-      (is (eq (cs-variable b-state) 'b))
+      (debug-only (is (eq (cs-place-descriptor b-state) 'b)))
       (is (= (slot-a-of object) 3))
       (is (= (slot-b-of object) 4))
       (setf (slot-a-of object) 42)
@@ -361,12 +362,12 @@ dragons be here :)
   (setf foo (compute-as 50))
 
   (clet ((a (compute-as (1+ foo)))
-         (object (make-instance 'computed-test
+         (object (make-instance 'computed-test-class
                                 :slot-a (compute-as (1+ a)))))
     (is (= foo 50))
     (is (= a 51))
     (is (= (slot-a-of object) 52))
-    (is (eq (cs-variable foo-state) 'foo))
+    (debug-only (is (eq (cs-place-descriptor foo-state) 'foo)))
     (let ((previous-state foo-state))
       (setf foo-state (compute-as 1))
       (is (not (eq previous-state foo-state)))
@@ -374,7 +375,7 @@ dragons be here :)
 |#
 
 (def test pulse1 ()
-  (let* ((object (make-instance 'computed-test
+  (let* ((object (make-instance 'computed-test-class
                                 :slot-a (compute-as 1)
                                 :slot-b (compute-as (1+ (slot-a-of -self-))))))
     (flet ((current-pulse ()
@@ -389,7 +390,7 @@ dragons be here :)
 (def test circularity1 ()
   (let* ((circularity #f)
          (flag #f)
-         (object (make-instance 'computed-test
+         (object (make-instance 'computed-test-class
                                 :slot-a (compute-as
                                           (when (or circularity flag)
                                             (slot-b-of -self-)))
@@ -543,7 +544,7 @@ dragons be here :)
               (slot-b-of object)))
            (terpri *debug-io*)))
     (measure (make-instance 'standard-test) "*** Reader, no computation, standard accessor: ")
-    (measure (make-instance 'computed-test
+    (measure (make-instance 'computed-test-class
                             :slot-a (compute-as 0)
                             :slot-b (compute-as (1+ (slot-a-of -self-))))
              "*** Reader, no computation, computed accessor: ")))
@@ -560,7 +561,7 @@ dragons be here :)
               (slot-b-of object)))
            (terpri *debug-io*)))
     (measure (make-instance 'standard-test) "*** Reader, writer, no computation, standard accessor: ")
-    (measure (make-instance 'computed-test
+    (measure (make-instance 'computed-test-class
                             :slot-a (compute-as 0)
                             :slot-b (compute-as (1+ (slot-a-of -self-))))
              "*** Reader, writer, recomputation, computed accessor: ")))
