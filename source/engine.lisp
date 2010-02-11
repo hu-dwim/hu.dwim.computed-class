@@ -26,6 +26,10 @@
            #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (pulse-of (cs-universe computed-state)))
 
+(def type recomputation-mode ()
+  ;; TODO: add :keep-up-to-date
+  `(member :always :on-demand))
+
 ;; TODO keep track of depends-on-me for debugging purposes, and also for forward pushing changes (which is not yet implemented)
 (def structure (computed-state (:conc-name cs-) (:print-object print-computed-state))
   "Describes the different kind of computed states. The value present in the slot of an object or the value present in a variable."
@@ -56,8 +60,7 @@
    :type (member standalone object-slot variable))
   (recomputation-mode
    :on-demand
-   ;; TODO: add :keep-up-to-date
-   :type (member :always :on-demand))
+   :type recomputation-mode)
   #+debug
   (place-descriptor ; contains the name of the computed variable, or the slot definition
    nil
