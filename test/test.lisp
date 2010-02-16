@@ -9,11 +9,13 @@
 (def suite* (test :in root-suite))
 
 ;; the two ways to define a computed-universe are equivalent
-(def (computed-universe e) (test-universe
-                            :computed-state-factory-name compute-as))
+(def (computed-universe e) test-universe ()
+  ()
+  (:computed-state-factory-name compute-as))
 
-(define-computed-universe (separate-universe
-                           :computed-state-factory-name separated-compute-as))
+(define-computed-universe separate-universe ()
+  ()
+  (:computed-state-factory-name separated-compute-as))
 
 ;;;;;;
 ;;; defclass tests
