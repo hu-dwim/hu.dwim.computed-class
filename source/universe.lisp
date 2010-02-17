@@ -90,8 +90,8 @@
          (eq (first form) computed-state-factory-name/primitive))))
 
 (def function %expand-computed-universe-definition (name supers slots export? class-options)
-  ;; multiple evaluation of DEFAULT-RECOMPUTATION-MODE, avoiding would break toplevelness
   ;; TODO: the options should be handled by the metaclass instead of the macro
+  (setf class-options (copy-alist class-options))
   (flet ((option-value (key default-value)
            (first (or (assoc-value class-options key)
                       (setf (assoc-value class-options key) (list default-value))))))
