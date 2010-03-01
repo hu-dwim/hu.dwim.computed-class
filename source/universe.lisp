@@ -69,13 +69,13 @@
           (return #f))
         (values #t (computed-state-factory-name/primitive-of universe) universe)))))
 
-(def function find-computed-universe (name &key (otherwise :error))
+(def function find-computed-universe (name &key (otherwise :error otherwise?))
   (check-type name symbol)
   (bind ((universe (find-class name nil)))
     (if (and universe
              (typep universe 'computed-universe-class))
         universe
-        (handle-otherwise otherwise))))
+        (handle-otherwise (error "Could not find computed-universe with name ~S" name)))))
 
 (def function compute-as-form? (form)
   "To identify forms that create a computed state, IOW the (compute-as ...) forms of computed universes."
