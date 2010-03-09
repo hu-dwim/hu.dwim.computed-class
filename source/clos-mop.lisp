@@ -15,7 +15,8 @@
 (def class computed-slot-definition (standard-slot-definition)
   ((computed-in
     :initform nil
-    :type (or (member t) computed-universe)
+    ;; TODO this brings up an error while compiling/loagin on ccl for some reason...
+    #-ccl :type #-ccl (or (member t) computed-universe)
     :accessor computed-in-of
     :initarg :computed-in)
    (computed-readers
