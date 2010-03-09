@@ -12,7 +12,7 @@
                                             (slot computed-effective-slot-definition))
   ;; we skip svuc to avoid recalculation of invalid slots
   (bind ((slot-value (standard-instance-access-form object slot)))
-    (cond ((eq slot-value '#.+unbound-slot-value+)
+    (cond ((unbound-slot-marker? slot-value)
            '("#<unbound>"))
           ((computed-state-p slot-value)
            `(,(if (computed-state-valid-p slot-value) "Valid: " "Invalid: ")

@@ -275,8 +275,7 @@
            #.(optimize-declaration))
   (the (or null computed-state)
     (let ((result (standard-instance-access-form object slot)))
-      (when (and (not (eq result '#.+unbound-slot-value+))
-                 (computed-state-p result))
+      (when (computed-state-p result)
         result))))
 
 (def function expand-to-primitive-compute-as-form (input-form &optional env)

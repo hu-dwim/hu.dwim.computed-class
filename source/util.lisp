@@ -6,20 +6,17 @@
 
 (in-package :hu.dwim.computed-class)
 
-(progn
-  ;; TODO: this should be in closer-mop?
-  (def class test ()
-    (test-slot))
+(def (function io) unbound-slot-marker ()
+  #*((:sbcl
+      ;; without LOAD-TIME-VALUE the compiler dies
+      (load-time-value sb-pcl::+slot-unbound+))
+     (:ccl
+      (ccl::%slot-unbound-marker))
+     (t
+      #.(not-yet-implemented/crucial-api 'unbound-slot-marker?))))
 
-  (def special-variable +unbound-slot-value+
-    (let ((test (make-instance 'test)))
-      (standard-instance-access test
-                                (slot-definition-location
-                                 (find 'test-slot (class-slots (find-class 'test))
-                                       :key #'slot-definition-name))))
-    "We use this symbol for unbound slot marking, so a quick eq is enough instead of a slot-boundp-using-class call.")
-
-  (setf (find-class 'test) nil))
+(def (function io) unbound-slot-marker? (value)
+  (eq value (unbound-slot-marker)))
 
 ;; TODO '(inline standard-instance-access (setf standard-instance-access))
 

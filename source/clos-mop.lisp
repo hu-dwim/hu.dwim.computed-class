@@ -164,7 +164,7 @@
 (def macro slot-value-using-class-body (object slot)
   (declare (type (or symbol effective-slot-definition) slot))
   `(let ((slot-value (standard-instance-access-form ,object ,slot)))
-    (when (eq slot-value ',+unbound-slot-value+)
+    (when (unbound-slot-marker? slot-value)
       (error 'unbound-slot
              :name ,(if (symbolp slot)
                         `(slot-definition-name ,slot)
@@ -220,8 +220,7 @@
 
 (def method slot-boundp-using-class ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  (not (eq (standard-instance-access-form object slot)
-           (load-time-value +unbound-slot-value+))))
+  (not (unbound-slot-marker? (standard-instance-access-form object slot))))
 
 (def method slot-boundp-using-class ((class computed-class) (object computed-object) (slot functional-effective-slot-definition))
   (declare #.(optimize-declaration))
@@ -229,7 +228,7 @@
 
 (def method slot-makunbound-using-class ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  (setf-standard-instance-access-form (load-time-value +unbound-slot-value+) object slot))
+  (setf-standard-instance-access-form (unbound-slot-marker) object slot))
 
 (def method slot-makunbound-using-class ((class computed-class) (object computed-object) (slot functional-effective-slot-definition))
   (declare #.(optimize-declaration))
