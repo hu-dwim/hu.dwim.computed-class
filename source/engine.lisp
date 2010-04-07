@@ -116,7 +116,7 @@
 (def (function io) %computed-state-value (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
-  (when (has-recompute-state-contex)
+  (when (has-recompute-state-contex?)
     (bind ((context *recompute-state-contex*)
            (computed-state-being-recomputed (rsc-computed-state context)))
       (when (and (not (eq :always (cs-recomputation-mode computed-state-being-recomputed)))
@@ -223,7 +223,7 @@
 (def function check-circularity (computed-state)
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
-  (when (has-recompute-state-contex)
+  (when (has-recompute-state-contex?)
     (bind ((context *recompute-state-contex*))
       (loop for parent-context = context :then (rsc-parent-context parent-context)
             while parent-context
