@@ -450,9 +450,10 @@ dragons be here :)
                     (defcfun (format* :computed-in test-universe) (datum &rest args)
                       (incf run-counter)
                       irrelevant-variable ; read a computed-state that is in another universe: should have no effect at all.
-                      (labels ((factorial (n)
-                                 (cond ((= n 1) 1)
-                                       (t (* n (factorial (- n 1)))))))
+                      (labels ((simple-factorial (n)
+                                 (if (= n 1)
+                                     1
+                                     (* n (simple-factorial (- n 1))))))
                         (apply #'format nil datum
                                (loop for arg in args
                                      collect (cond ((and (stringp arg)
@@ -460,7 +461,7 @@ dragons be here :)
                                                     (string-upcase arg))
                                                    ((and (integerp arg)
                                                          (member arg integers-to-be-factorized :test #'eql))
-                                                    (factorial arg))
+                                                    (simple-factorial arg))
                                                    (t arg)))))))))
 
   ;; we need to tell Stefil to compile the test body at definition time, so it can see the lexical bindings
