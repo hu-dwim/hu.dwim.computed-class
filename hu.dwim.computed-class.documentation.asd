@@ -11,7 +11,7 @@
 (defsystem :hu.dwim.computed-class.documentation
   :class hu.dwim.documentation-system
   :depends-on (:hu.dwim.computed-class.test
-               :hu.dwim.wui)
+               :hu.dwim.presentation)
   :components ((:module "documentation"
                 :components ((:file "computed-class" :depends-on ("package"))
                              (:file "package")))))
