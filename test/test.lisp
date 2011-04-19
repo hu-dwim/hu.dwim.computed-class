@@ -568,3 +568,49 @@ dragons be here :)
                             :slot-a (compute-as 0)
                             :slot-b (compute-as (1+ (slot-a-of -self-))))
              "*** Reader, writer, recomputation, computed accessor: ")))
+
+#|
+on SBCL 1.0.47.24
+TEST> (timing1)
+
+*** Reader, no computation, standard accessor:
+
+Evaluation took:
+  0.055 seconds of real time
+  0.050000 seconds of total run time (0.050000 user, 0.000000 system)
+  90.91% CPU
+  122,985,760 processor cycles
+  0 bytes consed
+
+*** Reader, no computation, computed accessor:
+
+Evaluation took:
+  1.555 seconds of real time
+  1.550000 seconds of total run time (1.550000 user, 0.000000 system)
+  99.68% CPU
+  3,514,500,109 processor cycles
+  0 bytes consed
+
+
+
+TEST> (timing2)
+
+*** Reader, writer, no computation, standard accessor:
+
+Evaluation took:
+  0.049 seconds of real time
+  0.050000 seconds of total run time (0.050000 user, 0.000000 system)
+  102.04% CPU
+  109,468,976 processor cycles
+  0 bytes consed
+
+*** Reader, writer, recomputation, computed accessor:
+
+Evaluation took:
+  1.675 seconds of real time
+  1.680000 seconds of total run time (1.670000 user, 0.010000 system)
+  [ Run times consist of 0.070 seconds GC time, and 1.610 seconds non-GC time. ]
+  100.30% CPU
+  3,787,267,642 processor cycles
+  63,995,664 bytes consed
+|#
