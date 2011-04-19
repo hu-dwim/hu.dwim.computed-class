@@ -234,95 +234,10 @@
   (declare #.(optimize-declaration))
   (error "The functional slot ~A in class ~A cannot be unbound." (slot-definition-name slot) (class-name class)))
 
-(def class computed-accessor-method (standard-accessor-method)
-  ((effective-slot
-    :initarg :effective-slot
-    :accessor effective-slot-of
-    :documentation "This method was generatated or validated using this effective slot object."))
-  (:documentation "computed-class generates accessors with this class."))
-
-(def class computed-reader-method (computed-accessor-method standard-reader-method)
-  ())
-
-(def class computed-writer-method (computed-accessor-method standard-writer-method)
-  ())
-
-#+debug
-(progn
-  (defparameter *kept-accessors* 0)
-  (defparameter *new-accessors* 0))
-
 (def function ensure-generic-function-for-accessor (accessor-name type)
   (ensure-generic-function accessor-name :lambda-list (ecase type
                                                         (:reader '(object))
                                                         (:writer '(new-value object)))))
-
-(def function ensure-accessor-for (class accessor-name effective-slot type)
-  (let* ((gf (ensure-generic-function-for-accessor accessor-name type))
-         (specializers (ecase type
-                         (:reader (list class))
-                         (:writer (list (find-class 't) class))))
-         (current-method (find-method gf '() specializers #f)))
-    (if (and current-method
-             (typep current-method 'computed-accessor-method)
-             (= (slot-definition-location (effective-slot-of current-method))
-                (slot-definition-location effective-slot)))
-        (progn
-          (computed-class.dribble "Keeping compatible ~A for class ~A, slot ~S, slot-location ~A"
-                                  (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
-                                  (slot-definition-location effective-slot))
-          #+debug(incf *kept-accessors*)
-          (setf (effective-slot-of current-method) effective-slot))
-        (progn
-          (computed-class.dribble "Ensuring new ~A for class ~A, slot ~S, effective-slot ~A, slot-location ~A"
-                                  (string-downcase (symbol-name type)) class (slot-definition-name effective-slot)
-                                  effective-slot (slot-definition-location effective-slot))
-          #+debug(incf *new-accessors*)
-          (let  ((method (ensure-method gf
-                                        (ecase type
-                                          (:reader
-                                           `(lambda (object)
-                                             (declare (optimize (speed 1))) ; (speed 1) to ignore compiler notes when defining accessors
-                                             (lcomputed-class.dribble "Entered reader for object ~A, generated for class ~A, slot ~A, slot-location ~A"
-                                                                      object ,class ,effective-slot ,(slot-definition-location effective-slot))
-                                             (if (eq (class-of object) ,class)
-                                                 (progn
-                                                   ,(macroexpand `(slot-value-using-class-body object ,effective-slot)))
-                                                 (progn
-                                                   (computed-class.dribble "Falling back to slot-value in reader for object ~A, slot ~A"
-                                                                           object (slot-definition-name ,effective-slot))
-                                                   (slot-value object ',(slot-definition-name effective-slot))))))
-                                          (:writer
-                                           `(lambda (new-value object)
-                                             (declare (optimize (speed 1))) ; (speed 1) to ignore compiler notes when defining accessors
-                                             (computed-class.dribble "Entered writer for object ~A, generated for class ~A, slot ~A, slot-location ~A"
-                                                                     object ,class ,effective-slot ,(slot-definition-location effective-slot))
-                                             (if (eq (class-of object) ,class)
-                                                 (progn
-                                                   ,(macroexpand `(setf-slot-value-using-class-body new-value object ,effective-slot)))
-                                                 (progn
-                                                   (computed-class.dribble "Falling back to (setf slot-value) in writer for object ~A, slot ~A"
-                                                                           object  (slot-definition-name ,effective-slot))
-                                                   (setf (slot-value object ',(slot-definition-name effective-slot)) new-value))))))
-                                        :specializers specializers
-                                        #+ensure-method-supports-method-class :method-class
-                                        #+ensure-method-supports-method-class (find-class 'computed-reader-method))))
-            (declare (ignorable method))
-            #+ensure-method-supports-method-class
-            (setf (effective-slot-of method) effective-slot))))))
-
-(def function ensure-accessors-for (class)
-  (loop for effective-slot :in (class-slots class)
-        when (typep effective-slot 'computed-effective-slot-definition) do
-        (computed-class.dribble "Visiting effective-slot ~A of class ~A to generate accessors" effective-slot class)
-        (dolist (reader (computed-readers-of effective-slot))
-          (ensure-accessor-for class reader effective-slot :reader))
-        (dolist (writer (computed-writers-of effective-slot))
-          (ensure-accessor-for class writer effective-slot :writer))))
-
-(def method finalize-inheritance :after ((class computed-class*))
-  ;; TODO this is most probably not the right way to install specialized accessors...
-  (ensure-accessors-for class))
 
 ;;; make sure computed-object is among the supers (thanks to Pascal Constanza)
 (def method initialize-instance :around ((class computed-class) &rest initargs &key direct-superclasses)
