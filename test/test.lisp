@@ -180,9 +180,13 @@
     ((slot-a :accessor slot-a-of :initarg :slot-a)
      (slot-b :accessor slot-b-of :initarg :slot-b))
     (:metaclass computed-class))
-  (let ((object (make-instance 'sbcl-class-cache-computed-test :slot-a (compute-as 1) :slot-b 1)))
-    (slot-a-of object)
-    (slot-b-of object))
+  (let ((object (make-instance 'sbcl-class-cache-computed-test
+                               :slot-a (compute-as (+ 40 2))
+                               :slot-b 1)))
+    ;; neither slots are computed, because at class definition time it wasn't requested.
+    ;; (which is possible either with a :computed-in slot argument or with a (compute-as ...) initform)
+    (is (not (numberp (slot-a-of object))))
+    (is (eql 1 (slot-b-of object))))
   (defclass sbcl-class-cache-computed-test ()
     ((slot-a :accessor slot-a-of :initarg :slot-a :computed-in test-universe)
      (slot-b :accessor slot-b-of :initarg :slot-b :computed-in test-universe))
