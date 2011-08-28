@@ -228,7 +228,8 @@
 
 (def method slot-makunbound-using-class ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
-  (setf-standard-instance-access-form (unbound-slot-marker) object slot))
+  (setf-standard-instance-access-form (unbound-slot-marker) object slot)
+  object)
 
 (def method slot-makunbound-using-class ((class computed-class) (object computed-object) (slot functional-effective-slot-definition))
   (declare #.(optimize-declaration))
