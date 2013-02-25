@@ -4,12 +4,9 @@
 ;;;
 ;;; See LICENCE for details.
 
-(load-system :hu.dwim.asdf)
-
-(in-package :hu.dwim.asdf)
-
 (defsystem :hu.dwim.computed-class
-  :class hu.dwim.system
+  :defsystem-depends-on (:hu.dwim.asdf)
+  :class hu.dwim.asdf:hu.dwim.system
   :description "Constraint based change propagation for class slots, lexical variables, function return values and reified cells."
   :depends-on (:hu.dwim.def+hu.dwim.common
                :hu.dwim.syntax-sugar
