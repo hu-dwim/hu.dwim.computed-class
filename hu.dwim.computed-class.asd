@@ -12,7 +12,6 @@
   :class hu.dwim.system
   :description "Constraint based change propagation for class slots, lexical variables, function return values and reified cells."
   :depends-on (:hu.dwim.def+hu.dwim.common
-               :hu.dwim.logger
                :hu.dwim.syntax-sugar
                :hu.dwim.util.mop)
   :components ((:module "source"

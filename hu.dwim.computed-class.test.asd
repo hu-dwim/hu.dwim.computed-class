@@ -10,7 +10,7 @@
 
 (defsystem :hu.dwim.computed-class.test
   :class hu.dwim.test-system
-  :depends-on (:hu.dwim.computed-class
+  :depends-on (:hu.dwim.computed-class+hu.dwim.logger
                :hu.dwim.stefil+hu.dwim.def)
   :components ((:module "test"
                 :components ((:file "package")

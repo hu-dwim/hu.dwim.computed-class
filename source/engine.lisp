@@ -156,7 +156,7 @@
       (computed-state-valid-p computed-state)
     (declare (ignorable newer-computed-state))
     (unless valid-p
-      (computed-class.dribble "About to recompute ~A because ~A is newer" computed-state newer-computed-state)
+      (log.dribble "About to recompute ~A because ~A is newer" computed-state newer-computed-state)
       (check-circularity computed-state)
       (recompute-computed-state computed-state)))
   (values))
@@ -166,7 +166,7 @@
            #.(optimize-declaration))
   (with-new-recompute-state-contex (:computed-state computed-state)
     (bind ((context *recompute-state-contex*))
-      (computed-class.dribble "Recomputing slot ~A" computed-state)
+      (log.dribble "Recomputing slot ~A" computed-state)
       (bind ((old-value (cs-value computed-state))
              (new-value (aif (cs-compute-as computed-state)
                              (funcall it (cs-object computed-state) old-value)
@@ -183,7 +183,7 @@
           (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state)))
         (if store-new-value-p
             (setf (cs-value computed-state) new-value)
-            (computed-class.dribble "Not storing fresh recomputed value for ~A because it was equal to the cached value." computed-state))
+            (log.dribble "Not storing fresh recomputed value for ~A because it was equal to the cached value." computed-state))
         new-value))))
 
 (locally (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
@@ -195,7 +195,7 @@
       (values #f computed-state)
       (let ((computed-at-pulse (cs-computed-at-pulse computed-state))
             (validated-at-pulse (cs-validated-at-pulse computed-state)))
-        (computed-class.dribble "Validating ~A" computed-state)
+        (log.dribble "Validating ~A" computed-state)
         (multiple-value-bind (valid-p newer-computed-state)
             (block valid-check
               (when (= (current-pulse computed-state) validated-at-pulse)
@@ -203,7 +203,7 @@
               (when (= computed-at-pulse #.+invalid-pulse+)
                 (return-from valid-check (values #f computed-state)))
               (loop for depends-on-computed-state :in (cs-depends-on computed-state) do
-                    (computed-class.dribble "Comparing ~A to ~A" computed-state depends-on-computed-state)
+                    (log.dribble "Comparing ~A to ~A" computed-state depends-on-computed-state)
                     (if (>= computed-at-pulse (cs-computed-at-pulse depends-on-computed-state))
                         (multiple-value-bind (valid-p newer-computed-state)
                             (computed-state-valid-p depends-on-computed-state)
@@ -216,7 +216,7 @@
           (if valid-p
               (setf (cs-validated-at-pulse computed-state) (current-pulse computed-state))
               (progn
-                (computed-class.dribble "Value turned out to be invalid for ~A" computed-state)
+                (log.dribble "Value turned out to be invalid for ~A" computed-state)
                 (invalidate-computed-state computed-state #t)))
           (values valid-p newer-computed-state))))))
 

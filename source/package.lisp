@@ -11,7 +11,6 @@
         :hu.dwim.common
         :hu.dwim.def
         :hu.dwim.util
-        :hu.dwim.logger
         :hu.dwim.syntax-sugar)
   (:export #:-current-value-)
   (:readtable-setup (hu.dwim.util:enable-standard-hu.dwim-syntaxes)))
