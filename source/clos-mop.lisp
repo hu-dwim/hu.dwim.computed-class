@@ -6,6 +6,9 @@
 
 (in-package :hu.dwim.computed-class)
 
+;; TODO (make-instance 'a-computed-class :a-computed-slot 1) should automatically wrap with (compute-as ...)
+;; TODO use COMPUTE-SLOT-VALUE-USING-CLASS-FORM when it gets implemented: https://bugs.launchpad.net/sbcl/+bug/520877
+
 ;;;;;;
 ;;; CLOS MOP related
 
@@ -15,7 +18,11 @@
 (def class computed-slot-definition (standard-slot-definition)
   ((computed-in
     :initform nil
-    ;; TODO this brings up an error while compiling/loadin on ccl for some reason...
+    ;; TODO ccl dies with the following (wrong) error:
+    ;; The value #<HU.DWIM.COMPUTED-CLASS::COMPUTED-UNIVERSE-CLASS HU.DWIM.COMPUTED-CLASS.TEST:TEST-UNIVERSE>,
+    ;; derived from the initarg :COMPUTED-IN, can not be used to set the value of the slot HU.DWIM.COMPUTED-CLASS::COMPUTED-IN in
+    ;; #<COMPUTED-DIRECT-SLOT-DEFINITION for instance slot HU.DWIM.COMPUTED-CLASS.TEST::SLOT-A #x30200175820D>,
+    ;; because it is not of type (OR (MEMBER T) HU.DWIM.COMPUTED-CLASS:COMPUTED-UNIVERSE).
     #-ccl :type #-ccl (or (member t) computed-universe)
     :accessor computed-in-of
     :initarg :computed-in)
