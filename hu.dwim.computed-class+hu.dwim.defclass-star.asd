@@ -6,7 +6,7 @@
 
 (defsystem :hu.dwim.computed-class+hu.dwim.defclass-star
   :defsystem-depends-on (:hu.dwim.asdf)
-  :class hu.dwim.asdf:hu.dwim.system
+  :class "hu.dwim.asdf:hu.dwim.system"
   :depends-on (:hu.dwim.computed-class
                :hu.dwim.defclass-star)
   :components ((:module "integration"

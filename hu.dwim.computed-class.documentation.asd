@@ -6,7 +6,7 @@
 
 (defsystem :hu.dwim.computed-class.documentation
   :defsystem-depends-on (:hu.dwim.asdf)
-  :class hu.dwim.asdf:hu.dwim.documentation-system
+  :class "hu.dwim.asdf:hu.dwim.documentation-system"
   :depends-on (:hu.dwim.computed-class.test
                :hu.dwim.presentation)
   :components ((:module "documentation"

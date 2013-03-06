@@ -6,7 +6,7 @@
 
 (defsystem :hu.dwim.computed-class
   :defsystem-depends-on (:hu.dwim.asdf)
-  :class hu.dwim.asdf:hu.dwim.system
+  :class "hu.dwim.asdf:hu.dwim.system"
   :description "Constraint based change propagation for class slots, lexical variables, function return values and reified cells."
   :depends-on (:hu.dwim.def+hu.dwim.common
                :hu.dwim.syntax-sugar

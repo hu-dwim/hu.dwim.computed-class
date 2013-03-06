@@ -6,7 +6,7 @@
 
 (defsystem :hu.dwim.computed-class.test
   :defsystem-depends-on (:hu.dwim.asdf)
-  :class hu.dwim.asdf:hu.dwim.test-system
+  :class "hu.dwim.asdf:hu.dwim.test-system"
   :depends-on (:hu.dwim.computed-class+hu.dwim.logger
                :hu.dwim.stefil+hu.dwim.def)
   :components ((:module "test"

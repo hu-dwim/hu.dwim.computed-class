@@ -6,7 +6,7 @@
 
 (defsystem :hu.dwim.computed-class+swank
   :defsystem-depends-on (:hu.dwim.asdf)
-  :class hu.dwim.asdf:hu.dwim.system
+  :class "hu.dwim.asdf:hu.dwim.system"
   :depends-on (:hu.dwim.computed-class
                :swank)
   :components ((:module "integration"
