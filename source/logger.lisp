@@ -14,13 +14,12 @@
    (t
     ;; otherwise only a fake minimalistic hu.dwim.logger emulation
     (macrolet ((frob (name)
-                `(def macro ,name (message &rest args)
-                   (declare (ignore message args))
-                   ;; `(format *debug-io* ,(string+ message "~%") ,@args)
-                   `(values))))
-     (frob log.fatal)
-     (frob log.error)
-     (frob log.warn)
-     (frob log.info)
-     (frob log.debug)
-     (frob log.dribble))))
+               `(progn
+                  ,@(loop
+                      :for postfix :in '(#:fatal #:error #:warn #:info #:debug #:dribble)
+                      :collect
+                      `(def macro ,(symbolicate name "." postfix) (message &rest args)
+                         (declare (ignore message args))
+                         ;; `(format *debug-io* ,(string+ message "~%") ,@args)
+                         `(values))))))
+     (frob log))))
