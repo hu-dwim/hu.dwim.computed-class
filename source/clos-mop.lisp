@@ -204,7 +204,11 @@
             (setf (%computed-state-value slot-value) ,new-value)
             ;; we just write the non computed-state new value in the slot that currently holds a non computed-state value or is unbound
             ;; TODO we could automatically wrap the value in a computed state but it's not trivial and we don't need it right now
-            (setf-standard-instance-access-form ,new-value ,object ,slot)))))
+            ;; KLUDGE we need to find an easier way around finding the default computed universe for a given slot
+            (setf-standard-instance-access-form (aif (computed-in-of ,slot)
+                                                     (make-computed-state :universe (default-universe-of it) :recomputation-mode :on-demand :form ,new-value :compute-as (constantly ,new-value) :kind 'object-slot :object ,object :place-descriptor ,slot)
+                                                     ,new-value)
+                                                ,object ,slot)))))
 
 (def method slot-value-using-class ((class computed-class) (object computed-object) (slot computed-effective-slot-definition))
   (declare #.(optimize-declaration))
