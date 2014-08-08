@@ -108,6 +108,8 @@
   "Set the value, invalidate and recalculate as needed."
   (declare (type computed-state computed-state)
            #.(optimize-declaration))
+  ;; TODO: rethink how the kind is handled, because now object-slot is implicit and it's not so useful this way
+  #+nil
   (unless (eq (cs-kind computed-state) 'standalone)
     (error "You may only call (setf computed-state-value) on standalone computed-state's and ~A is not one" computed-state))
   (setf (%computed-state-value computed-state) new-value)

@@ -206,7 +206,8 @@
             ;; TODO we could automatically wrap the value in a computed state but it's not trivial and we don't need it right now
             ;; KLUDGE we need to find an easier way around finding the default computed universe for a given slot
             (setf-standard-instance-access-form (aif (computed-in-of ,slot)
-                                                     (make-computed-state :universe (default-universe-of it) :recomputation-mode :on-demand :form ,new-value :compute-as (constantly ,new-value) :kind 'object-slot :object ,object :place-descriptor ,slot)
+                                                     (make-computed-state :universe (default-universe-of it) :recomputation-mode :on-demand :compute-as (constantly ,new-value) :kind 'object-slot :object ,object
+                                                                          #+debug :form #+debug ,new-value #+debug :place-descriptor #+debug ,slot)
                                                      ,new-value)
                                                 ,object ,slot)))))
 
