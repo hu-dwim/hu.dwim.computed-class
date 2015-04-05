@@ -27,6 +27,8 @@
 #|
 Constraint based change propagation, with special care taken for CLOS MOP integation
 
+due to hu.dwim.util.mop it now depends on defclass-star, so the code should either switch to using it everywhere, or avoid the dependency.
+
 partial lists follow...
 
 features:
