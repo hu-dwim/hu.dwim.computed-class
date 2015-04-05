@@ -6,9 +6,8 @@
 
 (in-package :hu.dwim.computed-class)
 
-;; KLUDGE this will break if the user first loads :hu.dwim.logger then compiles :hu.dwim.computed-class and then restarts the image
-;; and tries to load the :hu.dwim.computed-class fasl's without loading :hu.dwim.logger beforehand.
-#*(((find-package :hu.dwim.logger)
+;; this mess here is for having fewer dependencies. if you need logging for debugging, then edit the read-time condition below and recompile.
+#*((nil
     ;; if we are loaded after :hu.dwim.logger, then use a full-featured logger
     (def hu.dwim.logger:logger computed-class () :accessor-name-prefix #:log.))
    (t
