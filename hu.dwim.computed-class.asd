@@ -24,4 +24,4 @@
                              (:file "package")
                              (:file "sequence" :depends-on ("api"))
                              (:file "universe" :depends-on ("api"))
-                             (:file "util" :depends-on ("logger"))))))
+                             (:file "util" :depends-on ("logger" "defclass-star"))))))
