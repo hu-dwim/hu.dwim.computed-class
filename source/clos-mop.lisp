@@ -18,12 +18,9 @@
 (def class computed-slot-definition (standard-slot-definition)
   ((computed-in
     :initform nil
-    ;; TODO ccl dies with the following (wrong) error:
-    ;; The value #<HU.DWIM.COMPUTED-CLASS::COMPUTED-UNIVERSE-CLASS HU.DWIM.COMPUTED-CLASS.TEST:TEST-UNIVERSE>,
-    ;; derived from the initarg :COMPUTED-IN, can not be used to set the value of the slot HU.DWIM.COMPUTED-CLASS::COMPUTED-IN in
-    ;; #<COMPUTED-DIRECT-SLOT-DEFINITION for instance slot HU.DWIM.COMPUTED-CLASS.TEST::SLOT-A #x30200175820D>,
-    ;; because it is not of type (OR (MEMBER T) HU.DWIM.COMPUTED-CLASS:COMPUTED-UNIVERSE).
-    #-ccl :type #-ccl (or (member t) computed-universe)
+    :type (or (member t nil) ;; nil is probably needed because the slot is NIL in certain phases of the MOP initializaion
+              ;; NOTE: not an instance of COMPUTED-UNIVERSE, but a (sub)class
+              class)
     :accessor computed-in-of
     :initarg :computed-in)
    (computed-readers
