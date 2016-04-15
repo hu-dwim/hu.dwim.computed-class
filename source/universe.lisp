@@ -23,13 +23,7 @@
     :reader universe-accessor-form-of)
    (universe-factory-form
     :initarg :universe-factory-form
-    :reader universe-factory-form-of)
-   (default-universe
-    :initarg nil
-    :type computed-universe
-    :initarg :default-universe
-    :reader default-universe-of
-    :writer (setf default-universe-of))))
+    :reader universe-factory-form-of)))
 
 (def method shared-initialize ((class computed-universe-class) slots &rest args &key &allow-other-keys)
   (setf args (copy-list args))
@@ -44,8 +38,7 @@
                :computed-state-factory-name/primitive
                :default-recomputation-mode
                :universe-accessor-form
-               :universe-factory-form
-               :default-universe))
+               :universe-factory-form))
   (apply #'call-next-method class slots args))
 
 (def method validate-superclass ((subclass computed-universe-class) (superclass standard-class))
@@ -105,7 +98,7 @@
     (bind ((computed-state-factory-name (option-value :computed-state-factory-name (symbolicate name '#:/compute-as)))
            (computed-state-factory-name/primitive (option-value :computed-state-factory-name/primitive (symbolicate computed-state-factory-name "*")))
            (default-recomputation-mode (option-value :default-recomputation-mode :on-demand))
-           (universe-accessor-form (option-value :universe-accessor-form `(default-universe-of (find-class ',name))))
+           (universe-accessor-form (option-value :universe-accessor-form `(get ',name 'computed-universe-instance)))
            (universe-factory-form (option-value :universe-factory-form `(make-instance ',name)))
            (self-variable-name (option-value :self-variable-name '-self-))
            (current-value-variable-name (option-value :current-value-variable-name '-current-value-))
@@ -122,7 +115,6 @@
              (:metaclass computed-universe-class))
            ,@(when export?
                    `((export '(,name ,computed-state-factory-name ,computed-state-factory-name/primitive)))))
-         (setf ,universe-accessor-form ,universe-factory-form)
          (def macro ,computed-state-factory-name/primitive ((&key (kind 'object-slot) (recomputation-mode ',default-recomputation-mode)) &body form)
            ,docstring
            (bind ((self-variable-name ',self-variable-name))
@@ -130,6 +122,10 @@
                (setf self-variable-name (gensym)))
              (with-unique-names (universe)
                `(bind ((,universe ,',universe-accessor-form))
+                  (unless ,universe
+                    ;; this is not thread-safe here, it's the user's responsibility to make sure of proper thread exclusion
+                    (setf ,universe ,',universe-factory-form)
+                    (setf ,',universe-accessor-form ,universe))
                   (check-type ,universe computed-universe)
                   (make-computed-state :universe ,universe
                                        :recomputation-mode ',recomputation-mode
