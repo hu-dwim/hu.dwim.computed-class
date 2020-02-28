@@ -15,17 +15,6 @@
 ;;;;;;
 ;;; Computed state
 
-(def (function io) incf-pulse (computed-state)
-  (declare (type computed-state computed-state)
-           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
-  ;; TODO think about fixnum overflow: keeping pulse at fixnum range is good for performance
-  (incf (pulse-of (cs-universe computed-state))))
-
-(def (function io) current-pulse (computed-state)
-  (declare (type computed-state computed-state)
-           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
-  (pulse-of (cs-universe computed-state)))
-
 (def type recomputation-mode ()
   ;; TODO: add :keep-up-to-date
   `(member :always :on-demand))
@@ -69,6 +58,17 @@
   (form
    nil
    :type (or atom list)))
+
+(def (function io) incf-pulse (computed-state)
+  (declare (type computed-state computed-state)
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+  ;; TODO think about fixnum overflow: keeping pulse at fixnum range is good for performance
+  (incf (pulse-of (cs-universe computed-state))))
+
+(def (function io) current-pulse (computed-state)
+  (declare (type computed-state computed-state)
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+  (pulse-of (cs-universe computed-state)))
 
 (def (function io) copy-place-independent-slots-of-computed-state (from into)
   "Copy the slots of FROM into INTO that are not dependent on the place this computed slot has been assigned to."
