@@ -7,10 +7,7 @@
 (in-package :hu.dwim.computed-class)
 
 (def (macro e) defcclass (name superclasses slots &rest options)
-  `(defclass ,name ,superclasses , slots
-    ,@(append (unless (find :metaclass options :key 'first)
-                '((:metaclass computed-class)))
-              options)))
+  (%defcclass/body 'defclass name superclasses slots options))
 
 (def (definer e :available-flags "e") computed-class (name superclasses slots &rest options)
   `(progn

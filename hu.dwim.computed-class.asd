@@ -15,7 +15,7 @@
   :components ((:module "source"
                 :components ((:file "api" :depends-on ("package"))
                              (:file "clet" :depends-on ("engine"))
-                             (:file "clos" :depends-on ("clos-mop" "engine"))
+                             (:file "clos" :depends-on ("clos-mop" "engine" "defclass-star"))
                              (:file "clos-mop" :depends-on ("engine"))
                              (:file "defcfun" :depends-on ("engine"))
                              (:file "defclass-star" :depends-on ("package"))
